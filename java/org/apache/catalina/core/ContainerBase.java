@@ -533,6 +533,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
 
         Container oldParent = this.parent;
         this.parent = container;
+        //调用实现了PropertyChangeListener接口的观察者
         support.firePropertyChange("parent", oldParent, this.parent);
 
     }
@@ -710,8 +711,9 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
                 throw new IllegalArgumentException(
                         sm.getString("containerBase.child.notUnique", child.getName()));
             }
-            child.setParent(this);  // May throw IAE
-            children.put(child.getName(), child);
+            // todo
+            child.setParent(this);  // May throw IAE 给子容器设置父容器，并且触发属性更改事件
+            children.put(child.getName(), child); //将生成的context以context的名字做key，进行保存到map中
         }
 
         fireContainerEvent(ADD_CHILD_EVENT, child);
@@ -723,6 +725,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
             if ((getState().isAvailable() ||
                     LifecycleState.STARTING_PREP.equals(getState())) &&
                     startChildren) {
+                // todo 启动context容器
                 child.start();
             }
         } catch (LifecycleException e) {
@@ -903,18 +906,20 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
         // Start our subordinate components, if any
         logger = null;
         getLogger();
+        // 1.如果配置了集群组件Cluster，则启动
         Cluster cluster = getClusterInternal();
         if (cluster instanceof Lifecycle) {
             // 在此启动集群组件
             ((Lifecycle) cluster).start();
         }
+        // 2.如果配置了安全组件Realm，则启动
         Realm realm = getRealmInternal();
         if (realm instanceof Lifecycle) {
             ((Lifecycle) realm).start();
         }
 
         // Start our child containers, if any
-        // 找打Container所有的孩子（Host）
+        // 3.找到Container所有的孩子（Host，或Context,或Wrapper）
         Container children[] = findChildren();
         List<Future<Void>> results = new ArrayList<>();
         for (Container child : children) {
@@ -943,15 +948,19 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
         }
 
         // Start the Valves in our pipeline (including the basic), if any
-        // 管道启动
+        // 4.管道启动
         if (pipeline instanceof Lifecycle) {
             // 管道启动，里面所有的阀门（Value）启动，阀门设置一个状态
             ((Lifecycle) pipeline).start();
         }
 
+        // 设置组件状态STARTING，此时会触发START_EVENT生命周期事件。
+        // HostConfig监听到该事件，扫描Web部署目录，对于部署描述文件，WAR包，目录会自动创建StandardContext实例，添加到Host并启动
         setState(LifecycleState.STARTING);
 
         // Start our thread
+        // 启动层级的后台任务处理，包括Cluster后台任务处理（包括部署变更检测，心跳），Realm后台任务处理，
+        // Pipeline中Value的后台任务处理
         if (backgroundProcessorDelay > 0) {
             monitorFuture = Container.getService(ContainerBase.this).getServer()
                     .getUtilityExecutor().scheduleWithFixedDelay(

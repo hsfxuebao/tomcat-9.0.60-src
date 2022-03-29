@@ -42,26 +42,29 @@ public final class ContextName {
      *                              at the end of the provided name should it be
      *                              removed?
      */
+    //name 文件名
     public ContextName(String name, boolean stripFileExtension) {
-
+        //假设文件名为myContext.xml和my/context.xml
         String tmp1 = name;
 
         // Convert Context names and display names to base names
 
-        // Strip off any leading "/"
+        // Strip off any leading "/"  剥离开头的/
         if (tmp1.startsWith("/")) {
             tmp1 = tmp1.substring(1);
         }
 
         // Replace any remaining /
+        // 将/替换成#，如果是myContext.xml，那么依然是myContext.xml，如果是my/context.xml，那么就是my#context.xml
         tmp1 = tmp1.replace('/', FWD_SLASH_REPLACEMENT);
 
-        // Insert the ROOT name if required
+        // Insert the ROOT name if required 如果需要，插入ROOT名称
+        //如果是以##开头或者没有名字的
         if (tmp1.startsWith(VERSION_MARKER) || tmp1.isEmpty()) {
-            tmp1 = ROOT_NAME + tmp1;
+            tmp1 = ROOT_NAME + tmp1; //比如##a,就会变成ROOT##a,为空就是ROOT
         }
 
-        // Remove any file extensions
+        // Remove any file extensions 去除扩展名
         if (stripFileExtension &&
                 (tmp1.toLowerCase(Locale.ENGLISH).endsWith(".war") ||
                         tmp1.toLowerCase(Locale.ENGLISH).endsWith(".xml"))) {
@@ -71,23 +74,27 @@ public final class ContextName {
         baseName = tmp1;
 
         String tmp2;
-        // Extract version number
+        // Extract version number 提取版本号
         int versionIndex = baseName.indexOf(VERSION_MARKER);
         if (versionIndex > -1) {
+            //如果存在##这种的，提取##后面作为版本号
             version = baseName.substring(versionIndex + 2);
+            //比如myContext##1.2,这里version就是1.2，tmp2为myContext
             tmp2 = baseName.substring(0, versionIndex);
         } else {
             version = "";
             tmp2 = baseName;
         }
-
+        //如果为ROOT,那么path路径为域名根目录
         if (ROOT_NAME.equals(tmp2)) {
             path = "";
         } else {
+            //   /myContext   /my/context
             path = "/" + tmp2.replace(FWD_SLASH_REPLACEMENT, '/');
         }
-
+        //如果存在版本号的应用
         if (versionIndex > -1) {
+            // /myContext##1.2   /my/context##1.2
             this.name = path + VERSION_MARKER + version;
         } else {
             this.name = path;

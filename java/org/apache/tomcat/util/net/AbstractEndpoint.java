@@ -1229,7 +1229,7 @@ public abstract class AbstractEndpoint<S,U> {
 
     private void bindWithCleanup() throws Exception {
         try {
-            //
+            // 绑定
             bind();
         } catch (Throwable t) {
             // Ensure open sockets etc. are cleaned up if something goes
@@ -1243,7 +1243,7 @@ public abstract class AbstractEndpoint<S,U> {
 
     public final void init() throws Exception {
         if (bindOnInit) {
-            //
+            // 绑定端口
             bindWithCleanup();
             bindState = BindState.BOUND_ON_INIT;
         }

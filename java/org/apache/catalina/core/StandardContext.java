@@ -5005,6 +5005,7 @@ public class StandardContext extends ContainerBase
 
         // Post work directory
         // 处理工作目录
+        // 这个目录用于存放编译后的jsp文件，一般生成的目录格式为tomcat安装目录work+engine名+host名+context的baseName
         postWorkDirectory();
 
         // Add missing components as necessary
@@ -5024,6 +5025,7 @@ public class StandardContext extends ContainerBase
             resourcesStart();
         }
 
+        //设置web加载器
         if (getLoader() == null) {
             // 加载web应用
             WebappLoader webappLoader = new WebappLoader();
@@ -5211,7 +5213,7 @@ public class StandardContext extends ContainerBase
                 getServletContext().setAttribute(Globals.WEBAPP_VERSION, getWebappVersion());
             }
 
-            // Set up the context init params
+            // Set up the context init params 设置初始化参数
             mergeParameters();
 
             // Call ServletContainerInitializers
@@ -5228,6 +5230,7 @@ public class StandardContext extends ContainerBase
             }
 
             // Configure and call application event listeners
+            // 实例化监听器，并且调用实现了ServletContextListener监听器的初始化方法
             if (ok) {
                 if (!listenerStart()) {
                     log.error(sm.getString("standardContext.listenerFail"));
@@ -5244,6 +5247,7 @@ public class StandardContext extends ContainerBase
 
             try {
                 // Start manager
+                // session管理器
                 Manager manager = getManager();
                 if (manager instanceof Lifecycle) {
                     ((Lifecycle) manager).start();
@@ -5254,6 +5258,7 @@ public class StandardContext extends ContainerBase
             }
 
             // Configure and call application filters
+            // 实例化filter，并且调用其初始化方法
             if (ok) {
                 if (!filterStart()) {
                     log.error(sm.getString("standardContext.filterFail"));
@@ -5262,6 +5267,7 @@ public class StandardContext extends ContainerBase
             }
 
             // Load and initialize all "load on startup" servlets
+            // 实例化设置了load on startup的Servlet并调用初始化方法
             if (ok) {
                 if (!loadOnStartup(findChildren())){
                     log.error(sm.getString("standardContext.servletFail"));

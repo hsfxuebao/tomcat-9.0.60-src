@@ -874,7 +874,6 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel,SocketChannel> 
                 } else if (sk.isValid()) {
                     if (sk.isReadable() || sk.isWritable()) {
                         if (socketWrapper.getSendfileData() != null) {
-                            // 放到events中
                             processSendfile(sk, socketWrapper, false);
                         } else {
                             // 防止重复读取socket中的数据
@@ -883,6 +882,7 @@ public class NioEndpoint extends AbstractJsseEndpoint<NioChannel,SocketChannel> 
                             // Read goes before write
                             if (sk.isReadable()) {
                                 if (socketWrapper.readOperation != null) {
+
                                     if (!socketWrapper.readOperation.process()) {
                                         closeSocket = true;
                                     }

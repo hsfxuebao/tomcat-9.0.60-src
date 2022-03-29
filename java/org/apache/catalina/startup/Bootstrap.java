@@ -480,6 +480,7 @@ public final class Bootstrap {
                 daemon.setAwait(true);
                 // 服务器大组件初始化流程，在这里绑定了ServerSocket端口，准备接收数据了
                 daemon.load(args);
+                // 启动
                 daemon.start();
                 if (null == daemon.getServer()) {
                     System.exit(1);

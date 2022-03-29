@@ -464,6 +464,7 @@ public final class Mapper {
             Wrapper wrapper, boolean jspWildCard, boolean resourceOnly) {
 
         synchronized (context) {
+            // 以'/*'开始的path加入到通配符wrapper当中
             if (path.endsWith("/*")) {
                 // Wildcard wrapper
                 String name = path.substring(0, path.length() - 2);
@@ -478,7 +479,7 @@ public final class Mapper {
                         context.nesting = slashCount;
                     }
                 }
-            } else if (path.startsWith("*.")) {
+            } else if (path.startsWith("*.")) { // 以'*.'开始的path加入到后缀wrapper当中
                 // Extension wrapper
                 String name = path.substring(2);
                 MappedWrapper newWrapper = new MappedWrapper(name, wrapper,
@@ -489,12 +490,12 @@ public final class Mapper {
                 if (insertMap(oldWrappers, newWrappers, newWrapper)) {
                     context.extensionWrappers = newWrappers;
                 }
-            } else if (path.equals("/")) {
+            } else if (path.equals("/")) { // 设置默认的DefaultWrapper
                 // Default wrapper
                 MappedWrapper newWrapper = new MappedWrapper("", wrapper,
                         jspWildCard, resourceOnly);
                 context.defaultWrapper = newWrapper;
-            } else {
+            } else { // 到这里都还没匹配到的就是精确的wrapper了
                 // Exact wrapper
                 final String name;
                 if (path.length() == 0) {

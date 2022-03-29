@@ -99,6 +99,7 @@ public class WebXmlParser {
 
         Digester digester;
         WebRuleSet ruleSet;
+        //如果是web.xml配置片段，那么就使用片段Digester
         if (fragment) {
             digester = webFragmentDigester;
             ruleSet = webFragmentRuleSet;
@@ -117,7 +118,7 @@ public class WebXmlParser {
 
         try {
             digester.parse(source);
-
+            //如果解析出了错误，那么设置ok为false，意味着context启动失败
             if (handler.getWarnings().size() > 0 ||
                     handler.getErrors().size() > 0) {
                 ok = false;

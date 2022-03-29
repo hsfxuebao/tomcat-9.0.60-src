@@ -588,6 +588,7 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
             // Loop waiting for a connection and a valid command
             // 服务器await期间
             while (!stopAwait) {
+
                 ServerSocket serverSocket = awaitSocket;
                 if (serverSocket == null) {
                     break;
