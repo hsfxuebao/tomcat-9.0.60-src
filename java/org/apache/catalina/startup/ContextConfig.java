@@ -897,6 +897,7 @@ public class ContextConfig implements LifecycleListener {
 
     protected void antiLocking() {
 
+        // 1.根据Host的appBase以及Context的docBase计算docBase的绝对路径。
         if ((context instanceof StandardContext)
                 && ((StandardContext) context).getAntiResourceLocking()) {
 
@@ -925,10 +926,12 @@ public class ContextConfig implements LifecycleListener {
                 log.error(sm.getString("contextConfig.noAntiLocking", tmp, context.getName()));
                 return;
             }
-
+            // 2.计算临时文件夹中的Wb应用根目录或WAR包名。
             if (originalDocBase.toLowerCase(Locale.ENGLISH).endsWith(".war")) {
+                // WAR包：${Context生命周期内的部署次数}-$WAR包名}。
                 antiLockingDocBase = new File(tmpFile, deploymentCount++ + "-" + docBase + ".war");
             } else {
+                // Web目录：${Context生命周期内的部署次数}-${目录名}。
                 antiLockingDocBase = new File(tmpFile, deploymentCount++ + "-" + docBase);
             }
             antiLockingDocBase = antiLockingDocBase.getAbsoluteFile();
@@ -941,7 +944,9 @@ public class ContextConfig implements LifecycleListener {
 
             // Cleanup just in case an old deployment is lying around
             ExpandWar.delete(antiLockingDocBase);
+            // 3. 复制web目录或者WAR包到临时目录
             if (ExpandWar.copy(docBaseFile, antiLockingDocBase)) {
+                // 4.将Context的docBase更新为临时目录下的Web应用目录或者WAR包路径。
                 context.setDocBase(antiLockingDocBase.getPath());
             }
         }
@@ -1296,7 +1301,7 @@ public class ContextConfig implements LifecycleListener {
                 context.getXmlValidation(), context.getXmlBlockExternal());
 
         Set<WebXml> defaults = new HashSet<>();
-        //获取webxml片段
+        // 1.解析默认配置，生成WebXml对象(Tomcat使用该对象表示web.xml的解析结果),我们暂且称之为“默认WebXml'
         defaults.add(getDefaultWebXmlFragment(webXmlParser));
 
         Set<WebXml> tomcatWebXml = new HashSet<>();
@@ -1305,6 +1310,7 @@ public class ContextConfig implements LifecycleListener {
         WebXml webXml = createWebXml();
 
         // Parse context level web.xml
+        // 2.解析Web应用的web.xml文件,暂时将其称为“主WebXml"
         InputSource contextWebXml = getContextWebXmlSource();
         if (!webXmlParser.parseWebXml(contextWebXml, webXml, false)) {
             ok = false;
@@ -1321,21 +1327,24 @@ public class ContextConfig implements LifecycleListener {
 
         //解析应用程序jar包中META-INF/web-fragment.xml
         //key为jar包的全路径名，value是从META-INF/web-fragment.xml解析后的WebXml对象
+        // 3.扫描Web应用所有JAR包，如果包含META-NF/web-fragment.xml,则解析文件并创建
+        //WebXml>对象。暂时将其称为“片段WebXml'”。
         Map<String,WebXml> fragments = processJarsForWebFragments(webXml, webXmlParser);
 
         // Step 2. Order the fragments.
         // 对片段进行排序，因为在片段中可以设置依赖，在什么什么之前启动，什么什么之后启动。
         Set<WebXml> orderedFragments = null;
+        // 4.将web-fragment.xml创建的WebXml对象按照Servlet规范进行排序
         orderedFragments =
                 WebXml.orderWebFragments(webXml, fragments, sContext);
 
         // Step 3. Look for ServletContainerInitializer implementations
         if (ok) {
-            //查找META-INF/services/javax.servlet.ServletContainerInitializer配置文件，
-            // 获取ServletContainerInitializer，这里的ServletContainerInitializer可以使用HandlesTypes注解指定需要处理的类型
+            // 5. 6.查找ServletContainerInitializer实现，并创建实例，查找范围分为两部分。
             processServletContainerInitializers();
         }
 
+        // 7. 当“主WebXml'”的netadataComplete为falser或者typeInitializerMap不为空时
         if  (!webXml.isMetadataComplete() || typeInitializerMap.size() > 0) {
             // Steps 4 & 5.
             processClasses(webXml, orderedFragments);
@@ -1344,6 +1353,8 @@ public class ContextConfig implements LifecycleListener {
         if (!webXml.isMetadataComplete()) {
             // Step 6. Merge web-fragment.xml files into the main web.xml
             // file. //合并片段配置文件的内容到主web.xml中
+            // 8.如果“主WebXml'”的metadataComplete为false,将所有的“片段WebXml'”按照排序顺
+            // 序合并到“主WebXml”。
             if (ok) {
                 ok = webXml.merge(orderedFragments);
             }
@@ -1355,18 +1366,19 @@ public class ContextConfig implements LifecycleListener {
             // Step 7b. Apply global defaults
             // Have to merge defaults before JSP conversion since defaults
             // provide JSP servlet definition.
-
+            // 9.将“默认WebXml”合并到“主WebXml'”。
             webXml.merge(defaults);
 
             // Step 8. Convert explicitly mentioned jsps to servlets
             // 准备数据转换被显示配置的jsp为servlet，指定初始化参数，指定ServletClass为org.apache.jasper.servlet.JspServlet
             if (ok) {
+                // 10.配置JspServlet
                 convertJsps(webXml);
             }
 
             // Step 9. Apply merged web.xml to Context
-            // 将web.xml配置的数据设置到context中
             if (ok) {
+                // 11.将web.xml配置的数据设置到context中
                 configureContext(webXml);
             }
         } else {
@@ -1382,7 +1394,7 @@ public class ContextConfig implements LifecycleListener {
 
         // Always need to look for static resources
         // Step 10. Look for static resources packaged in JARs
-        // 从jar中中查找静态资源
+        // 查找JAR包“META-NF/resources/”下的静态资源，并添加到StandardContext。
         if (ok) {
             // Spec does not define an order.
             // Use ordered JARs followed by remaining JARs
@@ -1398,7 +1410,8 @@ public class ContextConfig implements LifecycleListener {
         }
 
         // Step 11. Apply the ServletContainerInitializer config to the
-        // context
+        // context  将ServletContainerInitializer扫描结果添加到StandardContext,以便StandardContext)启动
+        //时使用。
         // // context 应用ServletContainerInitializer  Initializer --》要处理的类型（可能是注解标识的，也可能就是指定的类型）
         if (ok) {
             for (Map.Entry<ServletContainerInitializer,
@@ -1419,7 +1432,9 @@ public class ContextConfig implements LifecycleListener {
     protected void processClasses(WebXml webXml, Set<WebXml> orderedFragments) {
         // Step 4. Process /WEB-INF/classes for annotations and
         // @HandlesTypes matches
-
+        /** 处理WEB-NF/classes下的注解，对于该目录下的每个类应做如下处理
+         *
+         */
         Map<String, JavaClassCacheEntry> javaClassCache;
 
         if (context.getParallelAnnotationScanning()) {
@@ -1450,8 +1465,17 @@ public class ContextConfig implements LifecycleListener {
         // are going to use (remember orderedFragments includes any
         // container fragments)
 
-        //解析jar包中的注解Servlet，Listener，FIlter
+        /**
+         * 处理JAR包内的注解，只处理包含web-fragment,xml的JAR,对于JAR包中的每个类做如下
+         * 处理。
+         *  检测javax.servlet..annotation.HandlesTypes注解；
+         *  当“主WebXml'”和“片段WebXml”的metadataComplete均为false,查找javax.servlet.
+         * annotation.WebServlet,javax.servlet.annotation.WebFilter,javax.servlet.annotation.WebListener
+         * 注解配置，将其合并到“片段WebXml”。
+         */
+        //解析jar包中的注解Servlet，Listener，Flter
         if (ok) {
+
             processAnnotations(
                     orderedFragments, webXml.isMetadataComplete(), javaClassCache);
         }
@@ -1461,10 +1485,17 @@ public class ContextConfig implements LifecycleListener {
     }
 
 
+    /**
+     * 使用“主WebXml'”配置当前StandardContext,包括Servlet、Filter、Listener等Servlet规
+     * 范中支持的组件。
+     * 对于ServletContext层级的对象，直接由StandardContext维护，对于Servlet,则
+     * 创建StandardWrapper子对象，并添加到StandardContext实例。
+     */
     private void configureContext(WebXml webxml) {
         // As far as possible, process in alphabetical order so it is easy to
         // check everything is present
         // Some validation depends on correct public ID
+
         context.setPublicId(webxml.getPublicId());
 
         // Everything else in order
@@ -1731,6 +1762,11 @@ public class ContextConfig implements LifecycleListener {
     }
 
 
+    /**
+     * 先解析
+     * 容器级配置，然后再解析Host级配置。这样对于同名配置，Host级将覆盖容器级。为了便于后续
+     * 过程描述，我们暂且称之为“默认WebXml'”。为了提升性能，ContextConfig对默认WebXml进行了缓存，以避免重复解析。
+     */
     private WebXml getDefaultWebXmlFragment(WebXmlParser webXmlParser) {
 
         // Host should never be null
@@ -1851,6 +1887,12 @@ public class ContextConfig implements LifecycleListener {
     }
 
 
+    /**
+     * 对于当前Web应用中JspFile属性不为空的Servlet,将其servletClass设
+     * 置为org,apache.jasper,servlet,JspServlet(Tomcat提供的JSP引擎)，将JspFilei设置为Servlet的
+     * 初始化参数，同时将名称为“jsp”的Servlet(见conf/web.xml)的初始化参数也复制到该Servlet
+     * 中。
+     */
     private void convertJsps(WebXml webXml) {
         Map<String,String> jspInitParams;
         ServletDef jspServlet = webXml.getServlets().get("jsp");
@@ -1902,6 +1944,10 @@ public class ContextConfig implements LifecycleListener {
 
     /**
      * Scan JARs for ServletContainerInitializer implementations.
+     * //查找META-INF/services/javax.servlet.ServletContainerInitializer配置文件，
+     * // 获取ServletContainerInitializer，这里的ServletContainerInitializer可以使用HandlesTypes注解指定需要处理的类型
+     * Web应用下的包：如果javax.servlet.context..orderedLibs不为空，仅搜索该属性包含的包，否则搜索WEB-INF/Iib下所有包。
+     * 容器包：搜索所有包。
      */
     protected void processServletContainerInitializers() {
 
@@ -1918,6 +1964,13 @@ public class ContextConfig implements LifecycleListener {
             return;
         }
 
+        /**
+         * 6.
+         * 根据ServletContainerInitializer查询结果以及javax.servlet.annotation.HandlesTypes注解配
+         * 置，初始化typeInitializerMap和initializerClassMap两个映射（主要用于后续的注解检测），前
+         * 者表示类对应的ServletContainerInitializer集合，而后者表示每个ServletContainerInitializer>对应的
+         * 类的集合，具体类由javax.servlet.annotation.HandlesTypes注解指定。
+         */
         for (ServletContainerInitializer sci : detectedScis) {
             initializerClassMap.put(sci, new HashSet<>());
 
@@ -2046,6 +2099,13 @@ public class ContextConfig implements LifecycleListener {
      * Identify the application web.xml to be used and obtain an input source
      * for it.
      * @return an input source to the context web.xml
+     */
+    /**
+     * 如果StandardContext的altDDName不为空，则将该属性指
+     * 向的文件作为web.xml,否则使用默认路径，即WEB-NF/web.xml。解析结果同样为WebXml对象
+     * (此时创建的对象为主WebXml,其他解析结果均需要合并到该对象上)。暂时将其称为“主
+     * WebXml"。
+     * @return
      */
     protected InputSource getContextWebXmlSource() {
         InputStream stream = null;

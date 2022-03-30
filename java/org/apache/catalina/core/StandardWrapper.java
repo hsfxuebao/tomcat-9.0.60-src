@@ -1091,6 +1091,8 @@ public class StandardWrapper extends ContainerBase
                     (sm.getString("standardWrapper.instantiate", servletClass), e);
             }
 
+            // 读取javax.servlet.annotation.MultipartConfig注解配置，以用于multipart/form-data请求处理，
+            // 包括临时文件存储路径、上传文件最大字节数、请求最大字节数、文件大小阈值。
             if (multipartConfigElement == null) {
                 MultipartConfig annotation =
                         servlet.getClass().getAnnotation(MultipartConfig.class);
@@ -1139,6 +1141,7 @@ public class StandardWrapper extends ContainerBase
     }
 
 
+    // 调用javax.servlet.Servlet.init() 方法进行初始化
     private synchronized void initServlet(Servlet servlet)
             throws ServletException {
 

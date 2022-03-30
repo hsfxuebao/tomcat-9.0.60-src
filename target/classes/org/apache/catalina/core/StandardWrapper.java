@@ -785,6 +785,7 @@ public class StandardWrapper extends ContainerBase
 
                             // Note: We don't know if the Servlet implements
                             // SingleThreadModel until we have loaded it.
+                            // 加载Servlet
                             instance = loadServlet();
                             newInstance = true;
                             if (!singleThreadModel) {
@@ -1067,6 +1068,7 @@ public class StandardWrapper extends ContainerBase
 
             InstanceManager instanceManager = ((StandardContext)getParent()).getInstanceManager();
             try {
+                // 创建Servlet对象
                 servlet = (Servlet) instanceManager.newInstance(servletClass);
             } catch (ClassCastException e) {
                 unavailable(null);
@@ -1089,6 +1091,8 @@ public class StandardWrapper extends ContainerBase
                     (sm.getString("standardWrapper.instantiate", servletClass), e);
             }
 
+            // 读取javax.servlet.annotation.MultipartConfig注解配置，以用于multipart/form-data请求处理，
+            // 包括临时文件存储路径、上传文件最大字节数、请求最大字节数、文件大小阈值。
             if (multipartConfigElement == null) {
                 MultipartConfig annotation =
                         servlet.getClass().getAnnotation(MultipartConfig.class);
@@ -1114,6 +1118,7 @@ public class StandardWrapper extends ContainerBase
                 singleThreadModel = true;
             }
 
+            // 初始化Servlet对象
             initServlet(servlet);
 
             fireContainerEvent("load", this);
@@ -1136,6 +1141,7 @@ public class StandardWrapper extends ContainerBase
     }
 
 
+    // 调用javax.servlet.Servlet.init() 方法进行初始化
     private synchronized void initServlet(Servlet servlet)
             throws ServletException {
 

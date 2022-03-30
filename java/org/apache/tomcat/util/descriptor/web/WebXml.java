@@ -2215,6 +2215,11 @@ public class WebXml extends XmlEncodingBase implements DocumentProperties.Charse
      *                       with
      * @return Ordered list of web-fragment.xml files to process
      */
+    /**
+     * 将web-fragment.xml创建的WebXml对象按照Servlet规范进行排序，同时将排序结果对
+     * 应的JAR文件名列表设置到ServletContext属性中，属性名为javax.servlet.context.orderedLibs。该
+     * 排序非常重要，因为这决定了Filter等的执行顺序。
+     */
     public static Set<WebXml> orderWebFragments(WebXml application,
             Map<String,WebXml> fragments, ServletContext servletContext) {
         return application.orderWebFragments(fragments, servletContext);
