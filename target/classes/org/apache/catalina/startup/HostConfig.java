@@ -479,8 +479,7 @@ public class HostConfig implements LifecycleListener {
         // Deploy WARs
         // Deploy WARs 部署war包
         deployWARs(appBase, filteredAppPaths);
-        // Deploy expanded folders
-        // Deploy expanded folders 部署项目文件夹
+        // Deploy expanded folders web目录部署
         deployDirectories(appBase, filteredAppPaths);
     }
 
