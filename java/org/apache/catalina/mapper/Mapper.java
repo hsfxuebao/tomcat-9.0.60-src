@@ -691,6 +691,8 @@ public final class Mapper {
     public void map(MessageBytes host, MessageBytes uri, String version,
                     MappingData mappingData) throws IOException {
 
+        // (1)一般情况下，需要查找的Host名称为请求的serverName。.但是，如果没有指定Host名称，
+        //那么将使用默认Host名称。
         if (host.isNull()) {
             String defaultHostName = this.defaultHostName;
             if (defaultHostName == null) {
@@ -737,7 +739,7 @@ public final class Mapper {
     @SuppressWarnings("deprecation") // contextPath
     private final void internalMap(CharChunk host, CharChunk uri,
             String version, MappingData mappingData) throws IOException {
-
+        // 如果mappingData.host不为空，说明mappingData是有问题的。抛出异常
         if (mappingData.host != null) {
             // The legacy code (dating down at least to Tomcat 4.1) just
             // skipped all mapping work in this case. That behaviour has a risk
@@ -748,6 +750,17 @@ public final class Mapper {
 
         // Virtual host mapping
         MappedHost[] hosts = this.hosts;
+
+        /** 查找的MappedHost，可以分为三步
+        * 1. 根据当前的hostName查找具体的host
+        * 2. 如果没有找到的话，就去掉第一个 "."之前的部分，再次查找。
+        *      例如，当输入时 abc.bde.ef.com，时，如果没有找到相应匹配的host时，则查找bde.ef.com。
+        *      因为看到在构建mapper，增加host上，当有会把host name的前导* 去掉的。
+        * 3.如果还没有找到，则设置为 默认的host
+         */
+        // (2)按照host名称查询Mapper.Host(忽略大小写)，如果没有找到匹配结果，且默认Host名称不
+        // 为空，则按照默认Host名称精确查询。如果存在匹配结果，将其保存到MappingData的host属性。
+        // 按照host名称，精确查找Mapper.Host,忽略大小写
         MappedHost mappedHost = exactFindIgnoreCase(hosts, host);
         if (mappedHost == null) {
             // Note: Internally, the Mapper does not use the leading * on a
@@ -757,6 +770,7 @@ public final class Mapper {
                 int offset = host.getOffset();
                 try {
                     host.setOffset(firstDot + offset);
+                    // 按照host名称，精确查找Mapper.Host,不忽略大小写
                     mappedHost = exactFindIgnoreCase(hosts, host);
                 } finally {
                     // Make absolutely sure this gets reset
@@ -770,6 +784,7 @@ public final class Mapper {
                 }
             }
         }
+        // 将查找到的Host更新到MappingData
         mappingData.host = mappedHost.object;
 
         if (uri.isNull()) {
@@ -780,8 +795,11 @@ public final class Mapper {
         uri.setLimit(-1);
 
         // Context mapping
+        // (3)按照url查找MapperdContextl最大可能匹配的位置pos(只限于第(2)步查找到的MappedHost
+        //下的MappedContext)。之所以如此描述，与Tomcat的查找算法相关。
         ContextList contextList = mappedHost.contextList;
         MappedContext[] contexts = contextList.contexts;
+        // 按照url查找Mapper.Context最大可能匹配的位置pos
         int pos = find(contexts, uri);
         if (pos == -1) {
             return;
@@ -793,10 +811,13 @@ public final class Mapper {
         boolean found = false;
         MappedContext context = null;
         while (pos >= 0) {
+            //
             context = contexts[pos];
+            // 如果url等于context名称或者以context名称+ '/'开头
             if (uri.startsWith(context.name)) {
                 length = context.name.length();
                 if (uri.getLength() == length) {
+                    // true 跳出循环
                     found = true;
                     break;
                 } else if (uri.startsWithIgnoreCase("/", length)) {
@@ -804,6 +825,10 @@ public final class Mapper {
                     break;
                 }
             }
+            // (4)当第(3)步查找的pos≥O时，得到对应的MappedContext,.如果url与MappedContext的路径
+            //相等或者url以MappedContexth路径+“”开头，均视为找到匹配的MappedContext。否则，循环执
+            // 行第(4)步，逐渐降低精确度以查找合适的MappedContext(具体可参见第(3)步的例子)。
+            // 去除url最后一个'/'之后的部分
             if (lastSlash == -1) {
                 lastSlash = nthSlash(uri, contextList.nesting + 1);
             } else {
@@ -813,18 +838,26 @@ public final class Mapper {
             pos = find(contexts, uri);
         }
         uri.setEnd(uriEnd);
-
+        //(5)如果循环结束后仍未找到合适的MappedContext,.那么会判断第0个MappedConext的名称
+        //是否为空字符串。如果是，则将其作为匹配结果（即使用默认MappedContext)。
         if (!found) {
+            // 如果第0个Mapper.Context名称为空字符串，则Context=context[0]
             if (contexts[0].name.equals("")) {
                 context = contexts[0];
             } else {
                 context = null;
             }
         }
+        // 还没有找到，返回
         if (context == null) {
             return;
         }
 
+        // (6)前面曾讲到MappedContext存放了路径相同的所有版本的Context(ContextVersion),因此
+        //在第(S)步结束后，还需要对MappedContexth版本进行处理。如果指定了版本号，则返回版本号相
+        //等的Context Version,否则返回版本号最大的。最后，将Context Version中维护的Context保存到
+        //MappingData中。
+        // 下面更新MappingData的contextPath、contexts、context
         mappingData.contextPath.setString(context.name);
 
         ContextVersion contextVersion = null;
@@ -849,6 +882,9 @@ public final class Mapper {
         mappingData.contextSlashCount = contextVersion.slashCount;
 
         // Wrapper mapping
+        // (7)如果Context当前状态为有效（由图3-6可知，当Context处于暂停状态时，将会重新按照url
+        //映射，此时MappedWrapperf的映射无意义)，则映射对应的MappedWrapper。
+        // 如果context有效，查找Wrapper
         if (!contextVersion.isPaused()) {
             internalMapWrapper(contextVersion, uri, mappingData);
         }
@@ -865,6 +901,11 @@ public final class Mapper {
                                           CharChunk path,
                                           MappingData mappingData) throws IOException {
 
+        /**
+         * (1)依据url和Context路径计算MappedWrapper匹配路径。例如，如果Context路径为“/myapp”,
+         * url为“/myapp/app1/index.jsp”,那么MappedWrapper的匹配路径为“/app1/index.jsp”;如果url为
+         * “/myapp”,那么MappedWrapperl的匹配路径为“/”"。
+         */
         int pathOffset = path.getOffset();
         int pathEnd = path.getEnd();
         boolean noServletPath = false;
@@ -877,10 +918,17 @@ public final class Mapper {
         path.setOffset(servletPath);
 
         // Rule 1 -- Exact Match
+        /**
+         * (2)先精确查找exactWrappers。
+         */
         MappedWrapper[] exactWrappers = contextVersion.exactWrappers;
         internalMapExactWrapper(exactWrappers, path, mappingData);
 
         // Rule 2 -- Prefix Match
+        /**
+         * (3)如果未找到，然后再按照前缀查找wildcardWrappers,.算法与MappedContext查找类似，
+         * 逐步降低精度。
+         */
         boolean checkJspWelcomeFiles = false;
         MappedWrapper[] wildcardWrappers = contextVersion.wildcardWrappers;
         if (mappingData.wrapper == null) {
@@ -920,6 +968,9 @@ public final class Mapper {
         }
 
         // Rule 3 -- Extension Match
+        /**
+         * (4)如果未找到，然后按照扩展名查找extension Wrappers。
+         */
         MappedWrapper[] extensionWrappers = contextVersion.extensionWrappers;
         if (mappingData.wrapper == null && !checkJspWelcomeFiles) {
             internalMapExtensionWrapper(extensionWrappers, path, mappingData,
@@ -927,6 +978,11 @@ public final class Mapper {
         }
 
         // Rule 4 -- Welcome resources processing for servlets
+        /**
+         * (5)如果未找到，则尝试匹配欢迎文件列表(web.xml中的welcome-file-list配置)。主要用于
+         * 我们输入的请求路径是一个目录而非文件的情况，如：htp:/127.0.0.1:8080/myapp/appl/。此时，
+         * 使用的匹配路径为“原匹配路径+welcome-file-ist中的文件名称”。欢迎文件匹配分为如下两步。
+         */
         if (mappingData.wrapper == null) {
             boolean checkWelcomeFiles = checkJspWelcomeFiles;
             if (!checkWelcomeFiles) {
@@ -941,7 +997,10 @@ public final class Mapper {
                     path.append(contextVersion.welcomeResources[i], 0,
                             contextVersion.welcomeResources[i].length());
                     path.setOffset(servletPath);
-
+                    /**
+                     * （5.1）对于每个欢迎文件生成的新的匹配路径，先查找exactWrappers,再查找wildcardWrappers。
+                     * 如果该文件在物理路径中存在，则查找extension Wrappers,如extension Wrappers未找到，则使用defaultWrapper
+                     */
                     // Rule 4a -- Welcome resources processing for exact macth
                     internalMapExactWrapper(exactWrappers, path, mappingData);
 
@@ -992,6 +1051,9 @@ public final class Mapper {
          * the case of index.jsf, index.do, etc.
          * A watered down version of rule 4
          */
+        /**
+         * (5.2) 对于每个欢迎文件生成的新的匹配路径，查找extensionWrappers
+         */
         if (mappingData.wrapper == null) {
             boolean checkWelcomeFiles = checkJspWelcomeFiles;
             if (!checkWelcomeFiles) {
@@ -1017,6 +1079,11 @@ public final class Mapper {
 
 
         // Rule 7 -- Default servlet
+        /**
+         * (6)如果未找到，则使用默认MappedWrapper(通过conf/web.xml,即使Web应用不显式地进
+         * 行配置，也一定会存在一个默认的Wrapper)。因此，无论请求链接是什么，只要匹配到合适的
+         * Context,.那么肯定会存在一个匹配的Wrapper。
+         */
         if (mappingData.wrapper == null && !checkJspWelcomeFiles) {
             if (contextVersion.defaultWrapper != null) {
                 mappingData.wrapper = contextVersion.defaultWrapper.object;

@@ -159,6 +159,7 @@ public final class ApplicationFilterChain implements FilterChain {
                 }
             }
         } else {
+            // 执行
             internalDoFilter(request,response);
         }
     }
@@ -168,6 +169,7 @@ public final class ApplicationFilterChain implements FilterChain {
         throws IOException, ServletException {
 
         // Call the next filter if there is one
+        // 拿到每一个Filter执行doFilter方法
         if (pos < n) {
             ApplicationFilterConfig filterConfig = filters[pos++];
             try {
@@ -224,6 +226,7 @@ public final class ApplicationFilterChain implements FilterChain {
                                            args,
                                            principal);
             } else {
+                // FilterChain 执行完没有任何异常，然后就会执行service方法
                 servlet.service(request, response);
             }
         } catch (IOException | ServletException | RuntimeException e) {

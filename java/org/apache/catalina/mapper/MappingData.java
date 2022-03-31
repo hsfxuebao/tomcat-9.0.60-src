@@ -30,21 +30,27 @@ import org.apache.tomcat.util.buf.MessageBytes;
  */
 public class MappingData {
 
+    // 匹配的Host
     public Host host = null;
+    // 匹配的Context
     public Context context = null;
+    // Context路径中'/'的数量
     public int contextSlashCount = 0;
+    // 匹配的Context列表，只用于匹配过程，并非最终使用结果
     public Context[] contexts = null;
+    // 匹配的Wrapper
     public Wrapper wrapper = null;
+    // 对于JspServlet，其对应的匹配pattern是否包含通配符
     public boolean jspWildCard = false;
 
     /**
      * @deprecated Unused. This will be removed in Tomcat 10.
      */
     @Deprecated
-    public final MessageBytes contextPath = MessageBytes.newInstance();
-    public final MessageBytes requestPath = MessageBytes.newInstance();
-    public final MessageBytes wrapperPath = MessageBytes.newInstance();
-    public final MessageBytes pathInfo = MessageBytes.newInstance();
+    public final MessageBytes contextPath = MessageBytes.newInstance(); // Context路径
+    public final MessageBytes requestPath = MessageBytes.newInstance(); // 相对于Context的请求路径
+    public final MessageBytes wrapperPath = MessageBytes.newInstance(); // Servlet路径
+    public final MessageBytes pathInfo = MessageBytes.newInstance();    // 重定向路径
 
     public final MessageBytes redirectPath = MessageBytes.newInstance();
 

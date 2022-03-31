@@ -312,6 +312,7 @@ public class CoyoteAdapter implements Adapter {
     }
 
 
+    // CoyoteAdapte处理请求
     @Override
     public void service(org.apache.coyote.Request req, org.apache.coyote.Response res)
             throws Exception {
@@ -321,7 +322,11 @@ public class CoyoteAdapter implements Adapter {
 
         if (request == null) {
             // Create objects
+            // 1. 根据Connector的请求(org,apache.coyote.Request)和响应(org.apache.coyote.Response)
+            //对象创建Servlet请求(org.apache.catalina.connector.Request)和响应(org.apache,
+            //catalina.connector.Response
             request = connector.createRequest();
+            // HttpServletRequest里面有真正的request
             request.setCoyoteRequest(req);
             response = connector.createResponse();
             response.setCoyoteResponse(res);
@@ -350,18 +355,23 @@ public class CoyoteAdapter implements Adapter {
 
         try {
             // Parse and set Catalina and configuration specific
-            // request parameters
+            // request parameters 后置解析请求
+            // 2.转换请求参数并完成请求映射。
             postParseSuccess = postParseRequest(req, request, res, response);
             if (postParseSuccess) {
                 //check valves if we support async
                 request.setAsyncSupported(
                         connector.getService().getContainer().getPipeline().isAsyncSupported());
-                // Calling the container
+
+                // Calling the container 调用容器，拿到Engine的pipeline
+                // 3.得到当前Enginef的第一个Valve并执行(invoke),以完成客户端请求处理。
                 connector.getService().getContainer().getPipeline().getFirst().invoke(
                         request, response);
             }
+            // 4. 如果是异步请求
             if (request.isAsync()) {
                 async = true;
+                // 4.1 获取请求读取事件监听器ReadListener
                 ReadListener readListener = req.getReadListener();
                 if (readListener != null && request.isFinished()) {
                     // Possible the all data may have been read during service()
@@ -370,6 +380,7 @@ public class CoyoteAdapter implements Adapter {
                     try {
                         oldCL = request.getContext().bind(false, null);
                         if (req.sendAllDataReadEvent()) {
+                            // 4.2 如果请求读取已经结束，触发ReadListener.onAllDataRead()
                             req.getReadListener().onAllDataRead();
                         }
                     } finally {
@@ -386,8 +397,12 @@ public class CoyoteAdapter implements Adapter {
                 if (!request.isAsyncCompleting() && throwable != null) {
                     request.getAsyncContextInternal().setErrorState(throwable, true);
                 }
+
             } else {
+            // 5.如果为同步请求
+                // Flush并关闭请求输入流
                 request.finishRequest();
+                // Flush 并关闭响应输出流
                 response.finishResponse();
             }
 
@@ -648,6 +663,7 @@ public class CoyoteAdapter implements Adapter {
             // URI decoding
             // %xx decoding of the URL
             try {
+                // 2.1 请求URI解码，初始化请求的路径参数。
                 req.getURLDecoder().convert(decodedURI.getByteChunk(), connector.getEncodedSolidusHandlingInternal());
             } catch (IOException ioe) {
                 response.sendError(400, "Invalid URI: " + ioe.getMessage());
@@ -660,6 +676,7 @@ public class CoyoteAdapter implements Adapter {
                 // Note: checkNormalize is deprecated because the test is no
                 //       longer required in Tomcat 10 onwards and has been
                 //       removed
+                // 2.2 检测URI是否合法，如果非法，则返回响应码400。
                 if (!checkNormalize(req.decodedURI())) {
                     response.sendError(400, "Invalid URI");
                 }
@@ -685,6 +702,9 @@ public class CoyoteAdapter implements Adapter {
         }
 
         // Request mapping.
+        // 2.3 请求映射，映射结果保存到org.apache.catalina.connector.Request..
+        //mappingData,类型为org.apache.tomcat.util.htp,mapper.MappingData,请求映射处理最终
+        //会根据URI定位到一个有效的Wrapper。
         MessageBytes serverName;
         if (connector.getUseIPVHosts()) {
             serverName = req.localName();
@@ -698,9 +718,10 @@ public class CoyoteAdapter implements Adapter {
 
         // Version for the second mapping loop and
         // Context that we expect to get for that version
-        String version = null;
-        Context versionContext = null;
-        boolean mapRequired = true;
+        // (1) 定义三个局部变量
+        String version = null; // 需要匹配的版本号，初始化为空，也就是匹配所有版本
+        Context versionContext = null; // 用于暂存按照会话ID匹配的Context,初始化为空
+        boolean mapRequired = true; // 是否需要映射，用于控制映射匹配循环，初始化为true。
 
         if (response.isError()) {
             // An error this early means the URI is invalid. Ensure invalid data
@@ -709,14 +730,20 @@ public class CoyoteAdapter implements Adapter {
             decodedURI.recycle();
         }
 
+        // (2) 通过一个循环(mapRequired==true)来处理映射匹配，因为只通过一次处理并不能确保
+        //得到正确结果。
         while (mapRequired) {
             // This will map the the latest version by default
+            // (3)在循环第(1)步，调用Mapper.map()方法按照请求路径进行匹配，参数为serverName、url、
+            //version。因为version初始化时为空，所以第一次执行时，所有匹配该请求路径的Context均会返
+            //回，此时MappingData.contexts中存放了所有结果，而MappingData.contextr中存放了最新版本
             connector.getService().getMapper().map(serverName, decodedURI,
                     version, request.getMappingData());
 
             // If there is no context at this point, either this is a 404
             // because no ROOT context has been deployed or the URI was invalid
             // so no context could be mapped.
+            // (4)如果没有任何匹配结果，那么返回404响应码，匹配结束。
             if (request.getContext() == null) {
                 // Allow processing to continue.
                 // If present, the rewrite Valve may rewrite this to a valid
@@ -732,6 +759,8 @@ public class CoyoteAdapter implements Adapter {
             // (if any). Need to do this before we redirect in case we need to
             // include the session id in the redirect
             String sessionID;
+            // (5)尝试从请求的URL、Cookie、SSL会话获取请求会话D,并将mapRequired设置为false(当
+            //第(3)步执行成功后，默认不再执行循环，是否需要重新执行由后续步骤确定)。
             if (request.getServletContext().getEffectiveSessionTrackingModes()
                     .contains(SessionTrackingMode.URL)) {
 
@@ -759,8 +788,13 @@ public class CoyoteAdapter implements Adapter {
             parseSessionSslId(request);
 
             sessionID = request.getRequestedSessionId();
-
+            // 将mapRequired设置为false
             mapRequired = false;
+
+            // (6)如果version不为空，且MappingData.context与versionContext相等，即表明当前匹配结果
+            //是会话查询的结果，此时不再执行第(7)步。当前步骤仅用于重复匹配，第一次执行时，version
+            //和versionContext均为空，所以需要继续执行第(7)步，而重复执行时，已经指定了版本，可得到
+            //唯一的匹配结果。
             if (version != null && request.getContext() == versionContext) {
                 // We got the version that we asked for. That is it.
             } else {
@@ -770,13 +804,23 @@ public class CoyoteAdapter implements Adapter {
                 Context[] contexts = request.getMappingData().contexts;
                 // Single contextVersion means no need to remap
                 // No session ID means no possibility of remap
+                //(7)如果不存在会话ID,那么第(3)步匹配结果即为最终结果（即使用匹配的最新版本）。否则，
+                //从MappingData.contexts中查找包含请求会话ID的最新版本，查询结果分如下情况。
                 if (contexts != null && sessionID != null) {
                     // Find the context associated with the session
+                    // 没有查询结果（即表明会话D过期)或者查询结果与第(3)步匹配结果相等，这时同样使
+                    //用的是第(3)步的匹配结果。
                     for (int i = contexts.length; i > 0; i--) {
                         Context ctxt = contexts[i - 1];
                         if (ctxt.getManager().findSession(sessionID) != null) {
                             // We found a context. Is it the one that has
                             // already been mapped?
+                            // 有查询结果且与第(3)步匹配结果不相等（表明当前会话使用的不是最新版本），将version
+                            //设置为查询结果的版本，versionContext设置为查询结果，将mapRequired设置为true,重
+                            //置MappingData。此种情况下，需要重复执行第(3)步（之所以需要重复执行，是因为虽然
+                            //通过会话ID查询到了合适的Context,但是MappingData中记录的Wrapperl以及相关的路径
+                            //信息仍属于最新版本Context,是错误的)，并明确指定匹配版本。指定版本后，第(3)步应
+                            //只存在唯一的匹配结果。
                             if (!ctxt.equals(request.getMappingData().context)) {
                                 // Set version so second time through mapping
                                 // the correct context is found
@@ -797,6 +841,9 @@ public class CoyoteAdapter implements Adapter {
                 }
             }
 
+            //(8) 如果mapRequired为false（即已找到唯一的匹配结果)，但匹配的Context状态为暂停（如
+            //正在重新加载)，此时等待l秒钟，并将mapRequiredi设置为true,重置MappingData。此种情况下，
+            //需要进行重新匹配，直到匹配到一个有效的Context或者无任何匹配结果为止。
             if (!mapRequired && request.getContext().getPaused()) {
                 // Found a matching context but it is paused. Mapping data will
                 // be wrong since some Wrappers may not be registered at this
@@ -813,6 +860,8 @@ public class CoyoteAdapter implements Adapter {
         }
 
         // Possible redirect
+        // 2.4 如果映射结果MappingData的redirectPath/属性不为空（即为重定向请求)，则调用org,
+        //apache,catalina.connector.Response,sendRedirect.发送重定向并结束。
         MessageBytes redirectPathMB = request.getMappingData().redirectPath;
         if (!redirectPathMB.isNull()) {
             String redirectPath = URLEncoder.DEFAULT.encode(
@@ -837,6 +886,8 @@ public class CoyoteAdapter implements Adapter {
         }
 
         // Filter trace method
+        // 2.5 如果当前Connector不允许追踪（allowTrace为false)且当前请求的Method为TRACE,则
+        //返回响应码405。
         if (!connector.getAllowTrace()
                 && req.method().equalsIgnoreCase("TRACE")) {
             Wrapper wrapper = request.getWrapper();
@@ -864,6 +915,7 @@ public class CoyoteAdapter implements Adapter {
             return true;
         }
 
+        // 2.6 执行连接器的认证及授权。
         doConnectorAuthenticationAuthorization(req, request);
 
         return true;
