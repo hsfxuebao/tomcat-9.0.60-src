@@ -21,10 +21,10 @@ rem ---------------------------------------------------------------------------
 setlocal
 
 rem Guess CATALINA_HOME if not defined
-set "CURRENT_DIR=%cd%"
-if not "%CATALINA_HOME%" == "" goto gotHome
-set "CATALINA_HOME=%CURRENT_DIR%"
-if exist "%CATALINA_HOME%\bin\catalina.bat" goto okHome
+set "CURRENT_DIR=%cd%" // 将当前的路径赋值给CURRENT_DIR
+if not "%CATALINA_HOME%" == "" goto gotHome  // 如果在系统环境变量中有配置CATALINA_HOME则直接跳转到gotHome
+set "CATALINA_HOME=%CURRENT_DIR%" //如果没配置则将当前的路径赋值给CATALINA_HOME
+if exist "%CATALINA_HOME%\bin\catalina.bat" goto okHome  //如果当前赋值的下由catalina.bat文件的存在则跳转到okHome
 cd ..
 set "CATALINA_HOME=%cd%"
 cd "%CURRENT_DIR%"
@@ -35,11 +35,11 @@ echo This environment variable is needed to run this program
 goto end
 :okHome
 
-set "EXECUTABLE=%CATALINA_HOME%\bin\catalina.bat"
+set "EXECUTABLE=%CATALINA_HOME%\bin\catalina.bat" //将catalina.bat给变量EXECUTABLE
 
 rem Check that target executable exists
-if exist "%EXECUTABLE%" goto okExec
-echo Cannot find "%EXECUTABLE%"
+if exist "%EXECUTABLE%" goto okExec //EXECUTABLE如果存在直接跳转okExec
+echo Cannot find "%EXECUTABLE%" //打印没找到EXECUTABLE的存在
 echo This file is needed to run this program
 goto end
 :okExec
@@ -47,12 +47,12 @@ goto end
 rem Get remaining unshifted command line arguments and save them in the
 set CMD_LINE_ARGS=
 :setArgs
-if ""%1""=="""" goto doneSetArgs
-set CMD_LINE_ARGS=%CMD_LINE_ARGS% %1
+if ""%1""=="""" goto doneSetArgs //判断有没有参数
+set CMD_LINE_ARGS=%CMD_LINE_ARGS% %1 //设置第一个参数
 shift
 goto setArgs
 :doneSetArgs
 
-call "%EXECUTABLE%" start %CMD_LINE_ARGS%
+call "%EXECUTABLE%" start %CMD_LINE_ARGS%  //转发调用catalina.bat文件启动 参数为CMD_LINE_ARGS
 
 :end

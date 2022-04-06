@@ -714,7 +714,7 @@ public class Catalina {
         initNaming();
 
         // Parse main server.xml
-        // 解析服务器的server.xml文件
+        // 解析服务器的server.xml文件 使用Digester 技术进行xml文档对象解析
         parseServerXml(true);
         Server s = getServer();
         if (s == null) {
@@ -729,8 +729,8 @@ public class Catalina {
         initStreams();
 
         // Start the new server
-        // 服务器执行初始化
         try {
+            // 服务器执行初始化 开始调用的Server的初始化方法注意Server是一个接口
             getServer().init();
         } catch (LifecycleException e) {
             if (Boolean.getBoolean("org.apache.catalina.startup.EXIT_ON_INIT_FAILURE")) {

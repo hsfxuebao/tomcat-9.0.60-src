@@ -141,12 +141,15 @@ public final class Bootstrap {
 
     private void initClassLoaders() {
         try {
+            // 实例化commonLoader，如果未创建成果的话，则使用应用程序类加载器作为commonLoader
             commonLoader = createClassLoader("common", null);
             if (commonLoader == null) {
                 // no config file, default to this loader - we might be in a 'single' env.
                 commonLoader = this.getClass().getClassLoader();
             }
+            /** 实例化catalinaLoader，其父加载器为commonLoader  **/
             catalinaLoader = createClassLoader("server", commonLoader);
+            /** 实例化sharedLoader，其父加载器为commonLoader  **/
             sharedLoader = createClassLoader("shared", commonLoader);
         } catch (Throwable t) {
             handleThrowable(t);
@@ -156,25 +159,43 @@ public final class Bootstrap {
     }
 
 
+    /**
+     * 按照名称创建不同tomcat 类加载器
+     */
     private ClassLoader createClassLoader(String name, ClassLoader parent)
         throws Exception {
 
+        /** 根据类加载器的名称从CatalinaProperties配置中读取不同类加载加载class文件资源路径，
+         *
+         * CatalinaProperties配置来源于tomcat工作目录/conf/catalina.properties
+         * 默认配置如下
+         * common.loader="${catalina.base}/lib","${catalina.base}/lib/*.jar","${catalina.home}/lib","${catalina.home}/lib/*.jar"
+         * server.loader=
+         * shared.loader=
+         */
         String value = CatalinaProperties.getProperty(name + ".loader");
         if ((value == null) || (value.equals(""))) {
             return parent;
         }
 
+        /** 替换资源路径字符串中属性遍历占位符，比如：${catalina.base}、${catalina.home}  **/
         value = replace(value);
 
+        /**
+         * 定义一个Repository类型的列表，
+         * Repository类用来表示一个资源。其内部存在2个属性location，location。分别表示资源的路径和资源的类型
+         **/
         List<Repository> repositories = new ArrayList<>();
-
+        /** 读取配置中的资源按,分隔字符数组**/
         String[] repositoryPaths = getPaths(value);
 
+        /**  遍历repositoryPaths  **/
         for (String repository : repositoryPaths) {
             // Check for a JAR URL repository
             try {
                 @SuppressWarnings("unused")
                 URL url = new URL(repository);
+                /** 创建一个Repository，类型为URL添加到repositories **/
                 repositories.add(new Repository(repository, RepositoryType.URL));
                 continue;
             } catch (MalformedURLException e) {
@@ -182,17 +203,22 @@ public final class Bootstrap {
             }
 
             // Local repository
+            /** 判断资源是否为某个目录下所有*.jar文件 **/
             if (repository.endsWith("*.jar")) {
                 repository = repository.substring
                     (0, repository.length() - "*.jar".length());
+                /** 创建一个Repository，类型为GLOB添加到repositories **/
                 repositories.add(new Repository(repository, RepositoryType.GLOB));
             } else if (repository.endsWith(".jar")) {
+                /** 创建一个Repository，类型为JAR添加到repositories **/
                 repositories.add(new Repository(repository, RepositoryType.JAR));
+            /** 判断资源是否目录 **/
             } else {
+                /** 创建一个Repository，类型为目录添加到repositories **/
                 repositories.add(new Repository(repository, RepositoryType.DIR));
             }
         }
-
+        //创建一个ClassLoader
         return ClassLoaderFactory.createClassLoader(repositories, parent);
     }
 
@@ -251,15 +277,16 @@ public final class Bootstrap {
 
         // 初始化tomcat三个类加载器
         initClassLoaders();
-
+        //设置线程类加载器，将容器的加载器传入
         Thread.currentThread().setContextClassLoader(catalinaLoader);
-
+        //加载安全类加载
         SecurityClassLoad.securityClassLoad(catalinaLoader);
-
+        //下面是初始化日志
         // Load our startup class and call its process() method
         if (log.isDebugEnabled()) {
             log.debug("Loading startup class");
         }
+        //通过反射加载catalina类
         Class<?> startupClass = catalinaLoader.loadClass("org.apache.catalina.startup.Catalina");
         // 利用反射创建Catalina对象
         Object startupInstance = startupClass.getConstructor().newInstance();
@@ -268,16 +295,22 @@ public final class Bootstrap {
         if (log.isDebugEnabled()) {
             log.debug("Setting startup class properties");
         }
+        //利用反射创建类加载器的对象调用方法为setParentClassLoader方法
         String methodName = "setParentClassLoader";
         Class<?> paramTypes[] = new Class[1];
+        //将类加载器作为参数进行传递
         paramTypes[0] = Class.forName("java.lang.ClassLoader");
         Object paramValues[] = new Object[1];
+        //共享加载器
         paramValues[0] = sharedLoader;
+        //返回方法对类加载器进行初始值赋值
         Method method =
             startupInstance.getClass().getMethod(methodName, paramTypes);
+        //调用了catalina内的setParentClassLoader方法对catalina类内的类加载器赋值
         method.invoke(startupInstance, paramValues);
 
         // catalina的后台线程
+        //将创建好的startupInstance 对象赋值给catalinaDaemon （此时的startupInstance 指的是Catalina对象用于load中调用Catalina类的load方法）
         catalinaDaemon = startupInstance;
     }
 
@@ -288,7 +321,9 @@ public final class Bootstrap {
     private void load(String[] arguments) throws Exception {
 
         // Call the load() method
+        //设置调用的方法名称
         String methodName = "load";
+        //设置传递的参数
         Object param[];
         Class<?> paramTypes[];
         if (arguments==null || arguments.length==0) {
@@ -300,11 +335,13 @@ public final class Bootstrap {
             param = new Object[1];
             param[0] = arguments;
         }
+        //开始远程调用Catalina类中的方法
         Method method =
             catalinaDaemon.getClass().getMethod(methodName, paramTypes);
         if (log.isDebugEnabled()) {
             log.debug("Calling startup class " + method);
         }
+        //Catalina load方法是没参数的看源码就是知道param指向的main的args参数也即是null
         method.invoke(catalinaDaemon, param);
     }
 
@@ -440,7 +477,7 @@ public final class Bootstrap {
      */
     // Tomcat入口启动
     public static void main(String args[]) {
-
+        // 启动的时候是同步的
         synchronized (daemonLock) {
             if (daemon == null) {
                 // Don't set daemon until init() has completed
@@ -463,6 +500,7 @@ public final class Bootstrap {
         }
 
         try {
+            //执行参数初始为启动  发现可以使用两个参数start和startd进行启动
             String command = "start";
             if (args.length > 0) {
                 command = args[args.length - 1];
@@ -470,6 +508,7 @@ public final class Bootstrap {
 
             if (command.equals("startd")) {
                 args[args.length - 1] = "start";
+                //在这里启动的链式初始化
                 daemon.load(args);
                 daemon.start();
             } else if (command.equals("stopd")) {

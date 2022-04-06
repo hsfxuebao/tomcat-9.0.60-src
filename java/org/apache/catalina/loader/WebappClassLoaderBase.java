@@ -867,6 +867,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                         new PrivilegedFindClassByName(name);
                     clazz = AccessController.doPrivileged(dp);
                 } else {
+                    // todo
                     clazz = findClassInternal(name);
                 }
             } catch(AccessControlException ace) {
@@ -1254,6 +1255,9 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             checkStateForClassLoading(name);
 
             // (0) Check our previously loaded local class cache
+            /**
+             * 1. 检查webappCladdLoader是否加载过这个类
+             */
             clazz = findLoadedClass0(name);
             if (clazz != null) {
                 if (log.isDebugEnabled()) {
@@ -1266,6 +1270,9 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             }
 
             // (0.1) Check our previously loaded class cache
+            /**
+             * 2. 检查JVM虚拟机中是否加载过该类。
+             */
             clazz = JreCompat.isGraalAvailable() ? null : findLoadedClass(name);
             if (clazz != null) {
                 if (log.isDebugEnabled()) {
@@ -1282,6 +1289,10 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             //       SRV.10.7.2
             String resourceName = binaryNameToPath(name, false);
 
+            /**
+             * 3. 使用系统类加载该类（也就是当前JVM的ClassPath）。
+             * 为了防止覆盖基础类实现，这里会判断class是不是JVMSE中的基础类库中类。
+             */
             ClassLoader javaseLoader = getJavaseClassLoader();
             boolean tryLoadingFromJavaseLoader;
             try {
@@ -1314,6 +1325,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
 
             if (tryLoadingFromJavaseLoader) {
                 try {
+                    // 为了防止覆盖基础类实现，这里会判断class是不是JVMSE中的基础类库中类。
                     clazz = javaseLoader.loadClass(name);
                     if (clazz != null) {
                         if (resolve) {
@@ -1340,6 +1352,10 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
                 }
             }
 
+            /**
+             * 4.先判断是否设置了delegate属性，设置为true，那么就会完全按照JVM的"双亲委托"机制流程加载类。
+             * 若是委托了，使用双亲委托亦没有加载到class实例，那还是最后使用WebappClassLoader加载。
+             */
             boolean delegateLoad = delegate || filter(name, true);
 
             // (1) Delegate to our parent if requested
@@ -1364,10 +1380,14 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             }
 
             // (2) Search local repositories
+            /**
+             * 5.若是没有委托，则默认会首次使用WebappClassLoader来加载类。通过自定义findClass定义处理类加载规则。
+             */
             if (log.isDebugEnabled()) {
                 log.debug("  Searching local repositories");
             }
             try {
+
                 clazz = findClass(name);
                 if (clazz != null) {
                     if (log.isDebugEnabled()) {
@@ -1383,6 +1403,9 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
             }
 
             // (3) Delegate to parent unconditionally
+            /**
+             * 6. 若是WebappClassLoader在/WEB-INF/classes、/WEB-INF/lib下还是查找不到class，那么无条件强制委托给System、Common类加载器去查找该类。
+             */
             if (!delegateLoad) {
                 if (log.isDebugEnabled()) {
                     log.debug("  Delegating to parent classloader at end: " + parent);
@@ -2362,6 +2385,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
         WebResource resource = null;
 
         if (entry == null) {
+            // 加载路径/WEB-INF/classes
             resource = resources.getClassLoaderResource(path);
 
             if (!resource.exists()) {
@@ -2558,6 +2582,7 @@ public abstract class WebappClassLoaderBase extends URLClassLoader
 
         String path = binaryNameToPath(name, true);
 
+        // WebappClassLoader 加载过的类都存放在 resourceEntries 缓存中
         ResourceEntry entry = resourceEntries.get(path);
         if (entry != null) {
             return entry.loadedClass;
