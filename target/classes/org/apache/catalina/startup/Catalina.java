@@ -384,6 +384,7 @@ public class Catalina {
         digester.setUseContextClassLoader(true);
 
         // Configure the actions we will be using
+        // 1. 创建Server实例
         digester.addObjectCreate("Server",
                                  "org.apache.catalina.core.StandardServer",
                                  "className");
@@ -391,21 +392,21 @@ public class Catalina {
         digester.addSetNext("Server",
                             "setServer",
                             "org.apache.catalina.Server");
-
+        // 2.创建全局J2EE企业命名上下文
         digester.addObjectCreate("Server/GlobalNamingResources",
                                  "org.apache.catalina.deploy.NamingResourcesImpl");
         digester.addSetProperties("Server/GlobalNamingResources");
         digester.addSetNext("Server/GlobalNamingResources",
                             "setGlobalNamingResources",
                             "org.apache.catalina.deploy.NamingResourcesImpl");
-
+        // 3.为Server添加生命周期监听器
         digester.addRule("Server/Listener",
                 new ListenerCreateRule(null, "className"));
         digester.addSetProperties("Server/Listener");
         digester.addSetNext("Server/Listener",
                             "addLifecycleListener",
                             "org.apache.catalina.LifecycleListener");
-
+        // 4.构建Service实例
         digester.addObjectCreate("Server/Service",
                                  "org.apache.catalina.core.StandardService",
                                  "className");
@@ -413,7 +414,7 @@ public class Catalina {
         digester.addSetNext("Server/Service",
                             "addService",
                             "org.apache.catalina.Service");
-
+        // 5.为Service添加生命周期监听器
         digester.addObjectCreate("Server/Service/Listener",
                                  null, // MUST be specified in the element
                                  "className");
@@ -423,6 +424,7 @@ public class Catalina {
                             "org.apache.catalina.LifecycleListener");
 
         //Executor
+        // 6.为Service添加Executor
         digester.addObjectCreate("Server/Service/Executor",
                          "org.apache.catalina.core.StandardThreadExecutor",
                          "className");
@@ -431,7 +433,7 @@ public class Catalina {
         digester.addSetNext("Server/Service/Executor",
                             "addExecutor",
                             "org.apache.catalina.Executor");
-
+        // 7.为Service添加Connector
         digester.addRule("Server/Service/Connector",
                          new ConnectorCreateRule());
         digester.addSetProperties("Server/Service/Connector",
@@ -441,7 +443,7 @@ public class Catalina {
                             "org.apache.catalina.connector.Connector");
 
         digester.addRule("Server/Service/Connector", new AddPortOffsetRule());
-
+        // 8.为Connector添加虚拟主机SSL配置
         digester.addObjectCreate("Server/Service/Connector/SSLHostConfig",
                                  "org.apache.tomcat.util.net.SSLHostConfig");
         digester.addSetProperties("Server/Service/Connector/SSLHostConfig");
@@ -470,6 +472,7 @@ public class Catalina {
                             "addCmd",
                             "org.apache.tomcat.util.net.openssl.OpenSSLConfCmd");
 
+        // 9.为Connector添加生命周期监听器
         digester.addObjectCreate("Server/Service/Connector/Listener",
                                  null, // MUST be specified in the element
                                  "className");
@@ -477,7 +480,7 @@ public class Catalina {
         digester.addSetNext("Server/Service/Connector/Listener",
                             "addLifecycleListener",
                             "org.apache.catalina.LifecycleListener");
-
+        // 10.为Connector添加升级协议
         digester.addObjectCreate("Server/Service/Connector/UpgradeProtocol",
                                   null, // MUST be specified in the element
                                   "className");
@@ -487,6 +490,7 @@ public class Catalina {
                             "org.apache.coyote.UpgradeProtocol");
 
         // Add RuleSets for nested elements
+        // 11.添加子元素解析规则
         digester.addRuleSet(new NamingRuleSet("Server/GlobalNamingResources/"));
         digester.addRuleSet(new EngineRuleSet("Server/Service/"));
         digester.addRuleSet(new HostRuleSet("Server/Service/Engine/"));
@@ -605,15 +609,18 @@ public class Catalina {
         } else {
             try (ConfigurationSource.Resource resource = ConfigFileLoader.getSource().getServerXml()) {
                 // Create and execute our Digester
+                // digester解析xml文件的工具
                 Digester digester = start ? createStartDigester() : createStopDigester();
                 InputStream inputStream = resource.getInputStream();
                 InputSource inputSource = new InputSource(resource.getURI().toURL().toString());
                 inputSource.setByteStream(inputStream);
+                // push方法
                 digester.push(this);
                 if (generateCode) {
                     digester.startGeneratingCode();
                     generateClassHeader(digester, start);
                 }
+                // 解析xml文件
                 digester.parse(inputSource);
                 if (generateCode) {
                     generateClassFooter(digester);
@@ -691,6 +698,7 @@ public class Catalina {
     /**
      * Start a new server instance.
      */
+    // catalina的加载信息
     public void load() {
 
         if (loaded) {
@@ -706,6 +714,7 @@ public class Catalina {
         initNaming();
 
         // Parse main server.xml
+        // 解析服务器的server.xml文件 使用Digester 技术进行xml文档对象解析
         parseServerXml(true);
         Server s = getServer();
         if (s == null) {
@@ -721,6 +730,7 @@ public class Catalina {
 
         // Start the new server
         try {
+            // 服务器执行初始化 开始调用的Server的初始化方法注意Server是一个接口
             getServer().init();
         } catch (LifecycleException e) {
             if (Boolean.getBoolean("org.apache.catalina.startup.EXIT_ON_INIT_FAILURE")) {
@@ -769,6 +779,7 @@ public class Catalina {
 
         // Start the new server
         try {
+            // 服务器的启动流程
             getServer().start();
         } catch (LifecycleException e) {
             log.fatal(sm.getString("catalina.serverStartFail"), e);
@@ -807,6 +818,7 @@ public class Catalina {
         }
 
         if (await) {
+            // 服务器8005 while true 接收命令
             await();
             stop();
         }

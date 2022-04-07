@@ -713,7 +713,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
             }
             // todo
             child.setParent(this);  // May throw IAE 给子容器设置父容器，并且触发属性更改事件
-            children.put(child.getName(), child); //将生成的context以context的名字做key，进行保存到map中
+            children.put(child.getName(), child); //名字做key，进行保存到map中
         }
 
         fireContainerEvent(ADD_CHILD_EVENT, child);
@@ -722,6 +722,8 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
         // Don't do this inside sync block - start can be a slow process and
         // locking the children object can cause problems elsewhere
         try {
+            // 在解析conf/server.xml时不会调用child.start()方法，因为此时child的state为NEW，
+            // 并且available=false
             if ((getState().isAvailable() ||
                     LifecycleState.STARTING_PREP.equals(getState())) &&
                     startChildren) {
