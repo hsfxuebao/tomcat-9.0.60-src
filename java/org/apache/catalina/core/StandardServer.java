@@ -1007,15 +1007,21 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
         // Note although the cache is global, if there are multiple Servers
         // present in the JVM (may happen when embedding) then the same cache
         // will be registered under multiple names
+        /** 1.往jmx中注册全局的String cache，尽管这个cache是全局，但是如果在同一个jvm中存在多个Server，
+         * 那么则会注册多个不同名字的StringCache，这种情况在内嵌的tomcat中可能会出现
+         */
         onameStringCache = register(new StringCache(), "type=StringCache");
 
         // Register the MBeanFactory
         MBeanFactory factory = new MBeanFactory();
         factory.setContainer(this);
+        /**
+         * 2.注册MBeanFactory，用来管理Server
+         */
         onameMBeanFactory = register(factory, "type=MBeanFactory");
 
         // Register the naming resources
-        // JNDI初始化
+        // 3.JNDI初始化, 往jmx中注册全局的NamingResources
         globalNamingResources.init();
 
         // Populate the extension validator with JARs from common and shared
@@ -1045,7 +1051,7 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
             }
         }
         // Initialize our defined Services
-        // 所有service初始化
+        // 4. 所有service初始化
         for (Service service : services) {
             service.init();
         }

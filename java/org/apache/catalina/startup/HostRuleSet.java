@@ -81,6 +81,7 @@ public class HostRuleSet implements RuleSet {
         digester.addSetProperties(prefix + "Host");
         digester.addRule(prefix + "Host",
                          new CopyParentClassLoaderRule());
+        // 为host设置配置的监听器
         digester.addRule(prefix + "Host",
                          new LifecycleListenerRule
                          ("org.apache.catalina.startup.HostConfig",

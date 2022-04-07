@@ -103,6 +103,7 @@ public class ContextRuleSet implements RuleSet {
         }
 
         if (create) {
+            // 添加ContextConfig监听器
             digester.addRule(prefix + "Context",
                              new LifecycleListenerRule
                                  ("org.apache.catalina.startup.ContextConfig",

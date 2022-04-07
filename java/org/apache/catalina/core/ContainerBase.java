@@ -267,6 +267,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
      * The number of threads available to process start and stop events for any
      * children associated with this container.
      */
+    // 默认一个线程
     private int startStopThreads = 1;
     protected ExecutorService startStopExecutor;
 

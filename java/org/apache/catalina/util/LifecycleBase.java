@@ -424,6 +424,7 @@ public abstract class LifecycleBase implements Lifecycle {
         this.state = state;
         String lifecycleEvent = state.getLifecycleEvent();
         if (lifecycleEvent != null) {
+            // 启动监听器对应的事件类型
             fireLifecycleEvent(lifecycleEvent, data);
         }
     }
