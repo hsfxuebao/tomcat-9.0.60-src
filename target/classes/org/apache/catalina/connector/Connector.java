@@ -77,6 +77,7 @@ public class Connector extends LifecycleMBeanBase  {
      * Defaults to using HTTP/1.1 NIO implementation.
      */
     public Connector() {
+        // 创建出Http11NioProtocol协议处理器
         this("HTTP/1.1");
     }
 
@@ -251,6 +252,7 @@ public class Connector extends LifecycleMBeanBase  {
     /**
      * Coyote protocol handler.
      */
+    // 协议处理器
     protected final ProtocolHandler protocolHandler;
 
 
@@ -1002,9 +1004,11 @@ public class Connector extends LifecycleMBeanBase  {
     }
 
 
+    // 连接器要启动监听端口怎么做到的？
     @Override
     protected void initInternal() throws LifecycleException {
 
+        // 1.注册jmx
         super.initInternal();
 
         if (protocolHandler == null) {
@@ -1013,7 +1017,9 @@ public class Connector extends LifecycleMBeanBase  {
         }
 
         // Initialize adapter
+        // 2. 初始化适配器,这个适配器是用于Coyote的Request、Response与HttpServlet的Request、Response适配的
         adapter = new CoyoteAdapter(this);
+        // 3.protocolHandler需要指定Adapter用于处理请求
         protocolHandler.setAdapter(adapter);
         if (service != null) {
             protocolHandler.setUtilityExecutor(service.getServer().getUtilityExecutor());
@@ -1044,6 +1050,7 @@ public class Connector extends LifecycleMBeanBase  {
         }
 
         try {
+            // 4.初始化ProtocolHandler，这个init不是Lifecycle定义的init，而是ProtocolHandler接口的init协议处理器初始化
             protocolHandler.init();
         } catch (Exception e) {
             throw new LifecycleException(
@@ -1057,10 +1064,12 @@ public class Connector extends LifecycleMBeanBase  {
      *
      * @exception LifecycleException if a fatal startup error occurs
      */
+    // 链接器启动
     @Override
     protected void startInternal() throws LifecycleException {
 
         // Validate settings before starting
+        // Connector创建对象的无参构造器默认就指定了Http11ProtocolHandler
         String id = (protocolHandler != null) ? protocolHandler.getId() : null;
         if (id == null && getPortWithOffset() < 0) {
             throw new LifecycleException(sm.getString(
@@ -1070,6 +1079,7 @@ public class Connector extends LifecycleMBeanBase  {
         setState(LifecycleState.STARTING);
 
         try {
+            // 协议处理器启动
             protocolHandler.start();
         } catch (Exception e) {
             throw new LifecycleException(

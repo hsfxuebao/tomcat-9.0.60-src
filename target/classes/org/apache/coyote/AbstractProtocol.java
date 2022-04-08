@@ -581,6 +581,7 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
             logPortOffset();
         }
 
+        // 1.完成jmx注册
         if (oname == null) {
             // Component not pre-registered so register it
             oname = createObjectName();
@@ -600,6 +601,7 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
         endpoint.setName(endpointName.substring(1, endpointName.length()-1));
         endpoint.setDomain(domain);
 
+        // 2.初始化endpoint
         endpoint.init();
     }
 
@@ -611,6 +613,7 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
             logPortOffset();
         }
 
+        // endpoint启动
         endpoint.start();
         monitorFuture = getUtilityExecutor().scheduleWithFixedDelay(
                 () -> {
@@ -870,6 +873,7 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
                     }
                 }
                 if (processor == null) {
+                    // 创建processor AbstractHttp11Protocol
                     processor = getProtocol().createProcessor();
                     register(processor);
                     if (getLog().isDebugEnabled()) {
@@ -886,6 +890,7 @@ public abstract class AbstractProtocol<S> implements ProtocolHandler,
 
                 SocketState state = SocketState.CLOSED;
                 do {
+                    // 处理器处理socket
                     state = processor.process(wrapper, status);
 
                     if (state == SocketState.UPGRADING) {

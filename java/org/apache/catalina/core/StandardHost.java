@@ -79,30 +79,37 @@ public class StandardHost extends ContainerBase implements Host {
     /**
      * The set of aliases for this Host.
      */
+    //当前host对象的别名的数组
     private String[] aliases = new String[0];
 
+    //锁
     private final Object aliasesLock = new Object();
 
 
     /**
      * The application root for this Host.
      */
+    //默认的app的路径是tomcat根路径下的webapps文件夹
     private String appBase = "webapps";
+    //引用这个文件夹
     private volatile File appBaseFile = null;
 
     /**
      * The XML root for this Host.
      */
+    //xml配置文件所在的目录
     private String xmlBase = null;
 
     /**
      * host's default config path
      */
+    //host的默认配置路径   conf/ + enginename + / + hostname
     private volatile File hostConfigBase = null;
 
     /**
      * The auto deploy flag for this Host.
      */
+    // 默认是自动部署的
     private boolean autoDeploy = true;
 
 
@@ -110,6 +117,7 @@ public class StandardHost extends ContainerBase implements Host {
      * The Java class name of the default context configuration class
      * for deployed web applications.
      */
+    // 默认的config类型，是个listener，通过监听当前host的状态来部署context啥的
     private String configClass =
         "org.apache.catalina.startup.ContextConfig";
 
@@ -118,6 +126,7 @@ public class StandardHost extends ContainerBase implements Host {
      * The Java class name of the default Context implementation class for
      * deployed web applications.
      */
+    //默认用到的context对象的类型
     private String contextClass =
         "org.apache.catalina.core.StandardContext";
 
@@ -125,6 +134,7 @@ public class StandardHost extends ContainerBase implements Host {
     /**
      * The deploy on startup flag for this Host.
      */
+    //默认在启动的时候部署应用
     private boolean deployOnStartup = true;
 
 
@@ -146,6 +156,7 @@ public class StandardHost extends ContainerBase implements Host {
      * The Java class name of the default error reporter implementation class
      * for deployed web applications.
      */
+    // 用于保存的valve默认的类型
     private String errorReportValveClass =
         "org.apache.catalina.valves.ErrorReportValve";
 
@@ -153,18 +164,21 @@ public class StandardHost extends ContainerBase implements Host {
     /**
      * Unpack WARs property.
      */
+    //默认要解压war包
     private boolean unpackWARs = true;
 
 
     /**
      * Work Directory base for applications.
      */
+    //app的work路径
     private String workDir = null;
 
 
     /**
      * Should we create directories upon startup for appBase and xmlBase
      */
+    //默认在启动的时候创建文件夹
     private boolean createDirs = true;
 
 
@@ -172,6 +186,7 @@ public class StandardHost extends ContainerBase implements Host {
      * Track the class loaders for the child web applications so memory leaks
      * can be detected.
      */
+    //跟踪每个app的classLoaer，用于定位内存泄露
     private final Map<ClassLoader, String> childClassLoaders =
             new WeakHashMap<>();
 
@@ -183,7 +198,7 @@ public class StandardHost extends ContainerBase implements Host {
      */
     private Pattern deployIgnore = null;
 
-
+    //默认不卸载老版本
     private boolean undeployOldVersions = false;
 
     private boolean failCtxIfServletStartFails = false;

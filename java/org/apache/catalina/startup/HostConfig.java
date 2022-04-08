@@ -101,18 +101,21 @@ public class HostConfig implements LifecycleListener {
     /**
      * The Java class name of the Context implementation we should use.
      */
+    //用到的context的类型
     protected String contextClass = "org.apache.catalina.core.StandardContext";
 
 
     /**
      * The Host we are associated with.
      */
+    //监听的host对象
     protected Host host = null;
 
 
     /**
      * The JMX ObjectName of this component.
      */
+    //在jmx上面注册的名字
     protected ObjectName oname = null;
 
 
@@ -120,6 +123,7 @@ public class HostConfig implements LifecycleListener {
      * Should we deploy XML Context config files packaged with WAR files and
      * directories?
      */
+    //是否要处理app的context的xml配置文件
     protected boolean deployXML = false;
 
 
@@ -128,6 +132,7 @@ public class HostConfig implements LifecycleListener {
      * $CATALINA_BASE/conf/&lt;engine&gt;/&lt;host&gt; by default when
      * a web application is deployed?
      */
+    //是否要将xml配置文件移动到/conf/enginename/hostname/下面
     protected boolean copyXML = false;
 
 
@@ -135,12 +140,14 @@ public class HostConfig implements LifecycleListener {
      * Should we unpack WAR files when auto-deploying applications in the
      * <code>appBase</code> directory?
      */
+    //是否要解压war
     protected boolean unpackWARs = false;
 
 
     /**
      * Map of deployed applications.
      */
+    //所有已经部署的应用，key是context的名字
     protected final Map<String, DeployedApplication> deployed =
         new ConcurrentHashMap<>();
 
@@ -164,6 +171,7 @@ public class HostConfig implements LifecycleListener {
     /**
      * The <code>Digester</code> instance used to parse context descriptors.
      */
+    //用于解析xml文件的
     protected Digester digester = createDigester(contextClass);
     private final Object digesterLock = new Object();
 
@@ -171,6 +179,7 @@ public class HostConfig implements LifecycleListener {
      * The list of Wars in the appBase to be ignored because they are invalid
      * (e.g. contain /../ sequences).
      */
+    //忽略的war包
     protected final Set<String> invalidWars = new HashSet<>();
 
     // ------------------------------------------------------------- Properties
@@ -179,6 +188,7 @@ public class HostConfig implements LifecycleListener {
     /**
      * @return the Context implementation class name.
      */
+    //获取用到的context的类型
     public String getContextClass() {
         return this.contextClass;
     }
@@ -311,6 +321,7 @@ public class HostConfig implements LifecycleListener {
         }
 
         // Process the event that has occurred
+        // 不同事件执行不同的方法
         if (event.getType().equals(Lifecycle.PERIODIC_EVENT)) {
             check();
         } else if (event.getType().equals(Lifecycle.BEFORE_START_EVENT)) {
@@ -644,7 +655,7 @@ public class HostConfig implements LifecycleListener {
         try (FileInputStream fis = new FileInputStream(contextXml)) {
             synchronized (digesterLock) {
                 try {
-                    //解析contextxml文件
+                    //解析context.xml文件
                     context = (Context) digester.parse(fis);
                 } catch (Exception e) {
                     log.error(sm.getString("hostConfig.deployDescriptor.error", contextXml.getAbsolutePath()), e);
@@ -1191,12 +1202,15 @@ public class HostConfig implements LifecycleListener {
             }
 
             Context context = null;
+
+            // xml文件名 = dir + META-INF/context.xml
             File xml = new File(dir, Constants.ApplicationContextXml);
             //当允许copyxml的时候会使用到
             File xmlCopy = new File(host.getConfigBaseFile(), cn.getBaseName() + ".xml");
 
             DeployedApplication deployedApp;
             boolean copyThisXml = isCopyXML();
+            // 判断Host的deployXML属性值为true 还是false （true表示即通过Context描述文件部署)
             boolean deployThisXML = isDeployThisXML(dir, cn);
 
             try {
@@ -1228,7 +1242,7 @@ public class HostConfig implements LifecycleListener {
                     } else {
                         context.setConfigFile(xml.toURI().toURL());
                     }
-                    //如果不允许发布这个配置文件并且对应的xml存在的话，构造失败context，why？？？即使存在context.xml也可以构造一个默认的context
+                //如果不允许发布这个配置文件并且对应的xml存在的话，构造失败context，why？？？即使存在context.xml也可以构造一个默认的context
                 } else if (!deployThisXML && xml.exists()) {
                     // Block deployment as META-INF/context.xml may contain security
                     // configuration necessary for a secure deployment.
@@ -1248,6 +1262,7 @@ public class HostConfig implements LifecycleListener {
                 context.setPath(cn.getPath());
                 context.setWebappVersion(cn.getVersion());
                 context.setDocBase(cn.getBaseName());
+                // todo 启动contxt
                 host.addChild(context);
             } catch (Throwable t) {
                 ExceptionUtils.handleThrowable(t);
@@ -1374,6 +1389,7 @@ public class HostConfig implements LifecycleListener {
          */
         protected synchronized void checkResources(DeployedApplication app,
         boolean skipFileModificationResolutionCheck) {
+            // 需要重新部署的守护资源
             String[] resources =
                 app.redeployResources.keySet().toArray(new String[0]);
             // Offset the current time by the resolution of File.lastModified()
@@ -1395,10 +1411,14 @@ public class HostConfig implements LifecycleListener {
                     if (resource.lastModified() != lastModified && (!host.getAutoDeploy() ||
                         resource.lastModified() < currentTimeWithResolutionOffset ||
                         skipFileModificationResolutionCheck)) {
+                        // 如果资源对应为目录，则更新守护资源列表中的上次修改时间
                         if (resource.isDirectory()) {
                             // No action required for modified directory
                             app.redeployResources.put(resources[i],
                                 Long.valueOf(resource.lastModified()));
+
+                        // 如果Web应用存在Context描述文件并且当前变更的是WAR包文件，
+                        //则得到原Context的docBase。
                         } else if (app.hasDescriptor &&
                             resource.getName().toLowerCase(
                                 Locale.ENGLISH).endsWith(".war")) {
@@ -1408,6 +1428,9 @@ public class HostConfig implements LifecycleListener {
                             // expanded WAR (if any)
                             Context context = (Context) host.findChild(app.name);
                             String docBase = context.getDocBase();
+
+                            // 如果docBase不以“.war”结尾（即Context指向的是WAR解压目录，删除解压
+                            //目录并重新加载，否则直接重新加载。更新守护资源。
                             if (!docBase.toLowerCase(Locale.ENGLISH).endsWith(".war")) {
                                 // This is an expanded directory
                                 File docBaseFile = new File(docBase);
@@ -1436,6 +1459,7 @@ public class HostConfig implements LifecycleListener {
                         } else {
                             // Everything else triggers a redeploy
                             // (just need to undeploy here, deploy will follow)
+                            // 直接卸载应用，并由接下来的处理步骤重新部署
                             undeploy(app);
                             deleteRedeployResources(app, resources, i, false);
                             return;
@@ -1454,11 +1478,14 @@ public class HostConfig implements LifecycleListener {
                         continue;
                     }
                     // Undeploy application
+                    // 其他情况，直接卸载应用，并由接下来的处理步骤重新部署
                     undeploy(app);
                     deleteRedeployResources(app, resources, i, true);
                     return;
                 }
             }
+
+            // 需要重新加载的资源
             resources = app.reloadResources.keySet().toArray(new String[0]);
             boolean update = false;
             for (String s : resources) {
@@ -1478,6 +1505,7 @@ public class HostConfig implements LifecycleListener {
                     update) {
                     if (!update) {
                         // Reload application
+                        // 如果资源已经变更，则重新加载Context对象
                         reload(app, null, null);
                         update = true;
                     }
@@ -1515,6 +1543,7 @@ public class HostConfig implements LifecycleListener {
                     context.setDocBase(newDocBase);
                 }
                 try {
+                    // todo Context启动
                     context.start();
                 } catch (Exception e) {
                     log.error(sm.getString("hostConfig.context.restart", app.name), e);
@@ -1679,7 +1708,7 @@ public class HostConfig implements LifecycleListener {
                 host.setDeployOnStartup(false);
                 host.setAutoDeploy(false);
             }
-
+            // 只有当deployOnStartup为true的时候才会执行
             if (host.getDeployOnStartup()) {
                 deployApps();
             }
@@ -1711,12 +1740,15 @@ public class HostConfig implements LifecycleListener {
          */
         protected void check() {
 
+            // 开启自动部署
             if (host.getAutoDeploy()) {
                 // Check for resources modification to trigger redeployment
+                // 每一个已部署的应用
                 DeployedApplication[] apps = deployed.values().toArray(new DeployedApplication[0]);
                 for (DeployedApplication app : apps) {
                     if (tryAddServiced(app.name)) {
                         try {
+                            // 检验资源（需要重新部署和重新加载的资源）
                             checkResources(app, false);
                         } finally {
                             removeServiced(app.name);
@@ -1730,6 +1762,7 @@ public class HostConfig implements LifecycleListener {
                 }
 
                 // Hotdeploy applications
+                // 热部署应用
                 deployApps();
             }
         }
@@ -1910,6 +1943,7 @@ public class HostConfig implements LifecycleListener {
              * contain resources like the context.xml file, a compressed WAR path.
              * The value is the last modification time.
              */
+            // 应用重新部署的资源 key 为资源路径 value为更新资源的最后修改时间
             public final LinkedHashMap<String, Long> redeployResources =
                 new LinkedHashMap<>();
 
@@ -1920,6 +1954,7 @@ public class HostConfig implements LifecycleListener {
              * additional descriptors.
              * The value is the last modification time.
              */
+            // 应用重新加载的资源 key 为资源路径 value为更新资源的最后修改时间
             public final HashMap<String, Long> reloadResources = new HashMap<>();
 
             /**

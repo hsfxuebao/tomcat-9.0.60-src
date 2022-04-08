@@ -54,6 +54,7 @@ public interface Host extends Container {
      * The ContainerEvent event type sent when a new alias is added
      * by <code>addAlias()</code>.
      */
+    //host的一些事件的定义，添加别名，移除别名啥的
     public static final String ADD_ALIAS_EVENT = "addAlias";
 
 
@@ -73,6 +74,7 @@ public interface Host extends Container {
      * If null, the base path defaults to
      * ${catalina.base}/conf/&lt;engine name&gt;/&lt;host name&gt; directory
      */
+    // 当前host对象的配置文件的路径，这个文件不一定存在吧   /conf/enginename/hostname/
     public String getXmlBase();
 
     /**
@@ -88,12 +90,14 @@ public interface Host extends Container {
      * @return a default configuration path of this Host. The file will be
      * canonical if possible.
      */
+    //当前host的配置xml文件
     public File getConfigBaseFile();
 
     /**
      * @return the application root for this Host.  This can be an absolute
      * pathname, a relative pathname, or a URL.
      */
+    //当前host的app在什么地方
     public String getAppBase();
 
 
@@ -102,6 +106,7 @@ public interface Host extends Container {
      * will be canonical if possible. There is no guarantee that that the
      * appBase exists.
      */
+    //获取app的放的目录的文件引用
     public File getAppBaseFile();
 
 
@@ -111,6 +116,7 @@ public interface Host extends Container {
      *
      * @param appBase The new application root
      */
+    //设置app存放的路径
     public void setAppBase(String appBase);
 
 
@@ -119,6 +125,7 @@ public interface Host extends Container {
      * this host's child webapps should be discovered and automatically
      * deployed dynamically.
      */
+    //是否自动部署
     public boolean getAutoDeploy();
 
 
@@ -134,6 +141,7 @@ public interface Host extends Container {
      * @return the Java class name of the context configuration class
      * for new web applications.
      */
+    //用于监听context的listener的类型
     public String getConfigClass();
 
 
@@ -151,6 +159,7 @@ public interface Host extends Container {
      * that this host's child webapps should be discovered and automatically
      * deployed.
      */
+    //启动的时候部署
     public boolean getDeployOnStartup();
 
 
@@ -167,6 +176,7 @@ public interface Host extends Container {
      * the host's appBase that will be ignored by the automatic deployment
      * process.
      */
+    //context名字匹配用的正则表达式
     public String getDeployIgnore();
 
 
@@ -193,6 +203,7 @@ public interface Host extends Container {
      * is primarily for use by components deploying contexts that want to do
      * this in a multi-threaded manner.
      */
+    // 用于启动和停止子container（也就是context）的executor
     public ExecutorService getStartStopExecutor();
 
 
@@ -201,6 +212,7 @@ public interface Host extends Container {
      * unless they already exist.
      * @return true if the Host will attempt to create directories
      */
+    //如果是ture的话，那么会尝试为应用程序和host的配置创建文件夹
     public boolean getCreateDirs();
 
 
@@ -218,6 +230,7 @@ public interface Host extends Container {
      * versions of applications deployed using parallel deployment. This only
      * takes effect is {@link #getAutoDeploy()} also returns <code>true</code>.
      */
+    //是否自动卸载程序的老版本
     public boolean getUndeployOldVersions();
 
 
@@ -238,6 +251,7 @@ public interface Host extends Container {
      *
      * @param alias The alias to be added
      */
+    //为当前host添加别名
     public void addAlias(String alias);
 
 
@@ -245,6 +259,7 @@ public interface Host extends Container {
      * @return the set of alias names for this Host.  If none are defined,
      * a zero length array is returned.
      */
+    //获取当前host的所有别名
     public String[] findAliases();
 
 
@@ -253,5 +268,6 @@ public interface Host extends Container {
      *
      * @param alias Alias name to be removed
      */
+    //移除一个别名
     public void removeAlias(String alias);
 }

@@ -586,7 +586,9 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
             awaitThread = Thread.currentThread();
 
             // Loop waiting for a connection and a valid command
+            // 服务器await期间
             while (!stopAwait) {
+
                 ServerSocket serverSocket = awaitSocket;
                 if (serverSocket == null) {
                     break;
@@ -599,6 +601,7 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
                     InputStream stream;
                     long acceptStartTime = System.currentTimeMillis();
                     try {
+                        // 接收数据，接收端口8005
                         socket = serverSocket.accept();
                         socket.setSoTimeout(10 * 1000);  // Ten seconds
                         stream = socket.getInputStream();
@@ -919,9 +922,11 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
         fireLifecycleEvent(CONFIGURE_START_EVENT, null);
         setState(LifecycleState.STARTING);
 
+        // JDNI启动
         globalNamingResources.start();
 
         // Start our defined Services
+        // 启动所有的service
         synchronized (servicesLock) {
             for (Service service : services) {
                 service.start();
@@ -993,6 +998,7 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
 
         super.initInternal();
 
+        // 以下就是第一个大组件Server的初始化过程
         // Initialize utility executor
         reconfigureUtilityExecutor(getUtilityThreadsInternal(utilityThreads));
         register(utilityExecutor, "type=UtilityExecutor");
@@ -1001,14 +1007,21 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
         // Note although the cache is global, if there are multiple Servers
         // present in the JVM (may happen when embedding) then the same cache
         // will be registered under multiple names
+        /** 1.往jmx中注册全局的String cache，尽管这个cache是全局，但是如果在同一个jvm中存在多个Server，
+         * 那么则会注册多个不同名字的StringCache，这种情况在内嵌的tomcat中可能会出现
+         */
         onameStringCache = register(new StringCache(), "type=StringCache");
 
         // Register the MBeanFactory
         MBeanFactory factory = new MBeanFactory();
         factory.setContainer(this);
+        /**
+         * 2.注册MBeanFactory，用来管理Server
+         */
         onameMBeanFactory = register(factory, "type=MBeanFactory");
 
         // Register the naming resources
+        // 3.JNDI初始化, 往jmx中注册全局的NamingResources
         globalNamingResources.init();
 
         // Populate the extension validator with JARs from common and shared
@@ -1038,6 +1051,7 @@ public final class StandardServer extends LifecycleMBeanBase implements Server {
             }
         }
         // Initialize our defined Services
+        // 4. 所有service初始化
         for (Service service : services) {
             service.init();
         }

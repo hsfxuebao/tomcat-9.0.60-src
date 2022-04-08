@@ -153,9 +153,10 @@ public abstract class LifecycleBase implements Lifecycle {
     /**
      * {@inheritDoc}
      */
-    @Override
+    @Override // 定义start的步骤，启动
     public final synchronized void start() throws LifecycleException {
-
+        // 组件状态流转判断
+        //如果已经正在启动了，那么无需重复启动，直接返回，由于多线程的原因，这个state是volatile修饰的，保证内存可见性
         if (LifecycleState.STARTING_PREP.equals(state) || LifecycleState.STARTING.equals(state) ||
                 LifecycleState.STARTED.equals(state)) {
 
@@ -168,17 +169,20 @@ public abstract class LifecycleBase implements Lifecycle {
 
             return;
         }
-
+        //如果当前状态还是NEW，也就是连init都么有，那么就需要进行初始化
         if (state.equals(LifecycleState.NEW)) {
             init();
+        //如果是失败，那么就停止容器
         } else if (state.equals(LifecycleState.FAILED)) {
             stop();
+        //如果没有进行初始化完，就开始启动，那么直接报错
         } else if (!state.equals(LifecycleState.INITIALIZED) &&
                 !state.equals(LifecycleState.STOPPED)) {
             invalidTransition(Lifecycle.BEFORE_START_EVENT);
         }
 
         try {
+            //设置声明周期类型，并且触发对应的事件
             setStateInternal(LifecycleState.STARTING_PREP, null, false);
             startInternal();
             if (state.equals(LifecycleState.FAILED)) {
@@ -420,6 +424,7 @@ public abstract class LifecycleBase implements Lifecycle {
         this.state = state;
         String lifecycleEvent = state.getLifecycleEvent();
         if (lifecycleEvent != null) {
+            // 启动监听器对应的事件类型
             fireLifecycleEvent(lifecycleEvent, data);
         }
     }

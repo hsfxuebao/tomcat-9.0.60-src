@@ -711,6 +711,7 @@ public class Catalina {
         initDirs();
 
         // Before digester - it may be needed
+        // 初始化jmx的环境变量
         initNaming();
 
         // Parse main server.xml
@@ -721,6 +722,7 @@ public class Catalina {
             return;
         }
 
+        // 给Server设置catalina信息
         getServer().setCatalina(this);
         getServer().setCatalinaHome(Bootstrap.getCatalinaHomeFile());
         getServer().setCatalinaBase(Bootstrap.getCatalinaBaseFile());

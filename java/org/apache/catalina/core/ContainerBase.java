@@ -1177,6 +1177,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
             }
             current = current.getNext();
         }
+        // 设置PERIODIC_EVENT事件，重新加载
         fireLifecycleEvent(Lifecycle.PERIODIC_EVENT, null);
     }
 
