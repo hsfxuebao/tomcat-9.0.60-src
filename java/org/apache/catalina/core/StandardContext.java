@@ -3244,6 +3244,7 @@ public class StandardContext extends ContainerBase
             servletMappings.put(adjustedPattern, name);
         }
         Wrapper wrapper = (Wrapper) findChild(name);
+        // todo 添加mapper
         wrapper.addMapping(adjustedPattern);
 
         fireContainerEvent("addServletMapping", adjustedPattern);
@@ -4954,6 +4955,7 @@ public class StandardContext extends ContainerBase
         for (ArrayList<Wrapper> list : map.values()) {
             for (Wrapper wrapper : list) {
                 try {
+                    // todo
                     wrapper.load();
                 } catch (ServletException e) {
                     getLogger().error(sm.getString("standardContext.loadOnStartup.loadException",
@@ -5146,7 +5148,7 @@ public class StandardContext extends ContainerBase
                 }
 
                 // Notify our interested LifecycleListeners
-                // 12.发布CONFIGURE_START_EVENT时间，ContextConfig监听该事件完成Servlet创建
+                // todo 12.发布CONFIGURE_START_EVENT事件，ContextConfig监听该事件完成Servlet创建
                 fireLifecycleEvent(Lifecycle.CONFIGURE_START_EVENT, null);
 
                 // Start our child containers, if not already started
@@ -5296,8 +5298,8 @@ public class StandardContext extends ContainerBase
             }
 
             // Load and initialize all "load on startup" servlets
-            // 25.对于loadOnStartup≥0的Wrapper,调用Wrapper.load(),该方法负责实例化Servlet,并
-            //调用Servlet..init进行初始化。
+            // todo 25.对于loadOnStartup≥0的Wrapper,调用Wrapper.load(),该方法负责实例化Servlet,并
+            //调用Servlet.init进行初始化。
             if (ok) {
                 if (!loadOnStartup(findChildren())){
                     log.error(sm.getString("standardContext.servletFail"));

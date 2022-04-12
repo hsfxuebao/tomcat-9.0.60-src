@@ -795,7 +795,7 @@ public final class Mapper {
         uri.setLimit(-1);
 
         // Context mapping
-        // (3)按照url查找MapperdContextl最大可能匹配的位置pos(只限于第(2)步查找到的MappedHost
+        // (3)按照url查找MapperdContext最大可能匹配的位置pos(只限于第(2)步查找到的MappedHost
         //下的MappedContext)。之所以如此描述，与Tomcat的查找算法相关。
         ContextList contextList = mappedHost.contextList;
         MappedContext[] contexts = contextList.contexts;
@@ -826,7 +826,7 @@ public final class Mapper {
                 }
             }
             // (4)当第(3)步查找的pos≥O时，得到对应的MappedContext,.如果url与MappedContext的路径
-            //相等或者url以MappedContexth路径+“”开头，均视为找到匹配的MappedContext。否则，循环执
+            //相等或者url以MappedContexth路径+“/”开头，均视为找到匹配的MappedContext。否则，循环执
             // 行第(4)步，逐渐降低精确度以查找合适的MappedContext(具体可参见第(3)步的例子)。
             // 去除url最后一个'/'之后的部分
             if (lastSlash == -1) {
@@ -886,6 +886,7 @@ public final class Mapper {
         //映射，此时MappedWrapperf的映射无意义)，则映射对应的MappedWrapper。
         // 如果context有效，查找Wrapper
         if (!contextVersion.isPaused()) {
+            // todo MapperWrapper查找
             internalMapWrapper(contextVersion, uri, mappingData);
         }
 
@@ -904,7 +905,7 @@ public final class Mapper {
         /**
          * (1)依据url和Context路径计算MappedWrapper匹配路径。例如，如果Context路径为“/myapp”,
          * url为“/myapp/app1/index.jsp”,那么MappedWrapper的匹配路径为“/app1/index.jsp”;如果url为
-         * “/myapp”,那么MappedWrapperl的匹配路径为“/”"。
+         * “/myapp”,那么MappedWrapper的匹配路径为“/”"。
          */
         int pathOffset = path.getOffset();
         int pathEnd = path.getEnd();
@@ -1780,9 +1781,13 @@ public final class Mapper {
         public final int slashCount;
         public final WebResourceRoot resources;
         public String[] welcomeResources;
+        // 默认Wrapper(defaultWrapper)
         public MappedWrapper defaultWrapper = null;
+        // 精确Wrapper(exactWrappers)
         public MappedWrapper[] exactWrappers = new MappedWrapper[0];
+        // 前缀加通配符匹配Wrapper(wildcardWrappers)
         public MappedWrapper[] wildcardWrappers = new MappedWrapper[0];
+        // 扩展名匹配Wrapper (extensionWrappers)
         public MappedWrapper[] extensionWrappers = new MappedWrapper[0];
         public int nesting = 0;
         private volatile boolean paused;

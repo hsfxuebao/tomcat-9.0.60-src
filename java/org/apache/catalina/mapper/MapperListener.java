@@ -193,6 +193,7 @@ public class MapperListener extends LifecycleMBeanBase
             String mapping = (String) event.getData();
             boolean jspWildCard = ("jsp".equals(wrapperName)
                     && mapping.endsWith("/*"));
+            // todo 添加mapper
             mapper.addWrapper(hostName, contextPath, version, mapping, wrapper,
                     jspWildCard, context.isResourceOnlyServlet(wrapperName));
         } else if (Wrapper.REMOVE_MAPPING_EVENT.equals(event.getType())) {

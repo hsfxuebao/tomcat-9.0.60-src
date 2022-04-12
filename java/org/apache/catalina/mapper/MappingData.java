@@ -50,9 +50,9 @@ public class MappingData {
     public final MessageBytes contextPath = MessageBytes.newInstance(); // Context路径
     public final MessageBytes requestPath = MessageBytes.newInstance(); // 相对于Context的请求路径
     public final MessageBytes wrapperPath = MessageBytes.newInstance(); // Servlet路径
-    public final MessageBytes pathInfo = MessageBytes.newInstance();    // 重定向路径
+    public final MessageBytes pathInfo = MessageBytes.newInstance();    // 相对于Servlet的请求路径
 
-    public final MessageBytes redirectPath = MessageBytes.newInstance();
+    public final MessageBytes redirectPath = MessageBytes.newInstance(); // 重定向路径
 
     // Fields used by ApplicationMapping to implement javax.servlet.http.HttpServletMapping
     public MappingMatch matchType = null;

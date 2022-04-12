@@ -2264,6 +2264,7 @@ public class Request implements HttpServletRequest {
      * @return the server cookies
      */
     public ServerCookies getServerCookies() {
+        // 就在这里出发了 Cookie 解析Header里面的数据 (PS: 其实就是 轮训查找 Header 里面那个 name 是 Cookie 的数据, 拿出来进行解析)
         parseCookies();
         return coyoteRequest.getCookies();
     }
