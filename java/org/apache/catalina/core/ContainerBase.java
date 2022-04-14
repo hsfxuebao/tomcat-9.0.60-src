@@ -1298,6 +1298,7 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
      * session timeouts.
      */
     protected void threadStart() {
+        // 开启ContainerBackgroundProcessor线程用于处理子容器，默认情况下backgroundProcessorDelay=-1，不会启用该线程
         if (backgroundProcessorDelay > 0
                 && (getState().isAvailable() || LifecycleState.STARTING_PREP.equals(getState()))
                 && (backgroundProcessorFuture == null || backgroundProcessorFuture.isDone())) {
@@ -1381,9 +1382,12 @@ public abstract class ContainerBase extends LifecycleMBeanBase implements Contai
                     // is performed under the web app's class loader
                     originalClassLoader = ((Context) container).bind(false, null);
                 }
+                // todo
                 container.backgroundProcess();
                 Container[] children = container.findChildren();
                 for (Container child : children) {
+                    // 如果子容器的 backgroundProcessorDelay 参数小于0，则递归处理子容器
+                    // 因为如果该值大于0，说明子容器自己开启了线程处理，因此父容器不需要再做处理
                     if (child.getBackgroundProcessorDelay() <= 0) {
                         processChildren(child);
                     }

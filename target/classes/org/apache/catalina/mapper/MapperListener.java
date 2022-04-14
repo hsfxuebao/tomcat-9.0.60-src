@@ -93,18 +93,18 @@ public class MapperListener extends LifecycleMBeanBase
 
     @Override
     public void startInternal() throws LifecycleException {
-
+        // 通知监听器状态改变
         setState(LifecycleState.STARTING);
-
+        // Engine为空直接返回
         Engine engine = service.getContainer();
         if (engine == null) {
             return;
         }
-
+        // 找到默认的Host
         findDefaultHost();
-
+        // 递归给所有的子容器添加监听器
         addListeners(engine);
-
+        // 处理子容器，绑定提前配置好的映射
         Container[] conHosts = engine.findChildren();
         for (Container conHost : conHosts) {
             Host host = (Host) conHost;
@@ -193,6 +193,7 @@ public class MapperListener extends LifecycleMBeanBase
             String mapping = (String) event.getData();
             boolean jspWildCard = ("jsp".equals(wrapperName)
                     && mapping.endsWith("/*"));
+            // todo 添加mapper
             mapper.addWrapper(hostName, contextPath, version, mapping, wrapper,
                     jspWildCard, context.isResourceOnlyServlet(wrapperName));
         } else if (Wrapper.REMOVE_MAPPING_EVENT.equals(event.getType())) {
@@ -446,6 +447,7 @@ public class MapperListener extends LifecycleMBeanBase
 
         List<WrapperMappingInfo> wrappers = new ArrayList<>();
         prepareWrapperMappingInfo(context, wrapper, wrappers);
+        //
         mapper.addWrappers(hostName, contextPath, version, wrappers);
 
         if(log.isDebugEnabled()) {
